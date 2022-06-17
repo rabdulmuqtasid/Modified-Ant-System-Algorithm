@@ -1,0 +1,18 @@
+.welcome-page {
+    font-family: Helvetica;
+    text-align: center;
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+}
+
+.welcome-page h2{
+    font-size: 32px;
+}
+
+.welcome-page p{
+    font-size: 24px;
+}
