@@ -35,7 +35,7 @@ const getFileById = async (req, res, next) => {
 const getFilesByUserId = async (req, res, next) => {
   const userId = req.params.id;
 
-  // let places;
+  
   let userWithFiles;
   try {
     userWithFiles = await User.findById(userId).populate('Dataset');
@@ -86,11 +86,10 @@ const createFile = async (req, res, next) => {
   }
 
   if (!user) {
-    const error = new HttpError('Could not find user for provided id', 404);
+    const error = new HttpError('Could not find user for provided id.', 404);
     return next(error);
   }
 
-  //console.log(user);
 
   try {
     const sess = await mongoose.startSession();
@@ -98,8 +97,10 @@ const createFile = async (req, res, next) => {
     await createdFile.save({ session: sess });
     user.Dataset.push(createdFile);
     await user.save({ session: sess });
+    //await user.save({validatemodifyedOnly:true});
     await sess.commitTransaction();
   } catch (err) {
+    console.log(err);
     const error = new HttpError(
       'Creating place failed, please try again.2',
       500
@@ -154,8 +155,6 @@ const deleteFile= async (req, res, next) => {
   let files;
   try {
     files = await File.findById(fileId).populate('userId');
-    // console.log("File Id: " + fileId);
-    // console.log("File : " + files);
   } catch (err) {
     const error = new HttpError(
       'Something went wrong, could not delete place 1.',
@@ -172,7 +171,6 @@ const deleteFile= async (req, res, next) => {
   try {
     const sess = await mongoose.startSession();
     sess.startTransaction();
-    //console.log("File : " + files);
     await files.remove({ session: sess });
     files.userId.Dataset.pull(Dataset);
     await files.userId.save({ session: sess });
@@ -187,7 +185,6 @@ const deleteFile= async (req, res, next) => {
 
   res.status(200).json({ message: 'Deleted place.' });
 };
-
 exports.getFileById = getFileById;
 exports.getFilesByUserId = getFilesByUserId;
 exports.createFile = createFile;

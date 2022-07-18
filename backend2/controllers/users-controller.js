@@ -49,8 +49,8 @@ const signup = async (req, res, next) => {
   }
   
   const createdUser = new User({
-    userId: uuidv4(),
-    Dataset: []
+    userId,
+    Dataset: [] 
   });
 
   try {
@@ -67,29 +67,24 @@ const signup = async (req, res, next) => {
 };
 
 const login = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { userId } = req.body;
 
   let existingUser;
 
   try {
-    existingUser = await User.findOne({ email: email })
+    existingUser = await User.findOne({ userId:userId });
   } catch (err) {
     const error = new HttpError(
-      'Logging in failed, please try again later.',
+      'Loggin in failed, please try again later.',
       500
     );
     return next(error);
   }
-
-  if (!existingUser || existingUser.password !== password) {
-    const error = new HttpError(
-      'Invalid credentials, could not log you in.',
-      401
-    );
-    return next(error);
-  }
-
-  res.json({message: 'Logged in!'});
+  
+  res.json({
+    message: 'Logged in!',
+    user: existingUser.toObject({ getters: true })
+  });
 };
 
 exports.getUsers = getUsers;

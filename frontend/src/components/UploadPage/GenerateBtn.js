@@ -1,6 +1,5 @@
 import React from "react";
 import {useNavigate} from 'react-router-dom';
-import GetDataset from '../GetDataset/getDataset';
 
 import './GenerateBtn.css';
 

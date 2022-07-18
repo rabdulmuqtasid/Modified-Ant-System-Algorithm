@@ -1,44 +1,58 @@
-import { concat, create, find, forEach, indexOf } from "lodash";
 import React,{ useEffect,useState, useContext } from "react";
 import { useParams } from "react-router-dom";
 import _ from 'lodash';
-import { CSVLink } from "react-csv";
-import LoadingSpinner from "../Modal/LoadingSpinner";
+import { AuthContext } from "../contexts/auth-context";
+
+import './GenerateSchedulePage.css';
 
 
 let finalDataAll = [];
-let finalDataAllElective = [];
-let checkHardConstraintOutsite = 0;
-let checkSoftConstraintOutsite = 0;
+let presentableData = []
+let presentableDataLecturer = []
+let MainData = []
+let byLectureData = []
+let byCourseData = []
+let notDuplicatesLecturerArray = []
+let notDuplicatesLecturerCodeArray = []
+let courseCodeArray = []
+let courseNameArray = []
+let userIds = []
+let maxHCS = 0
+let maxSCS = 0
+let minHCS = 0
+let minSCS = 0
+let countWKSlt = 0
+let countPerfectSlt = 0
+
+var t0 = performance.now()
 
 const ArraySchedule = (props) => {
 
+    const auth =  useContext(AuthContext);
+    userIds.push(auth.userId)
+    
 
     const [isLoading, setIsLoading] = useState(false);
     const [loadedFile, setLoaadedFile] = useState(false);
     const [roomData, setroomData] = useState();
     const [courseData, setcourseData] = useState();
-    const [CsvData, setCsvData] = useState();
-    // const [Keys, setKeys] = useState();
-    //const [uploadedData, setUploadedData] = useState([]);
-    //console.log("props dataset:"+ props.test)
+
+    let disbaleButton = true
 
     const userId = useParams().userId;
+
     useEffect(()=>{
         const sendRequest = async () =>{
             setIsLoading(true);
             try{
-            const response = await fetch('http://localhost:5000/api/files/users/6280a9b970216c2e558ac875');
-            //const responseRequest = await sendRequest('http://localhost:5000/api/files/users/${userId}');
-            //const response = await fetch('http://localhost:5000/api/files/users/${userId}');
+            const response = await fetch(`http://localhost:5000/api/files/users/${userIds}`);
             const responsedata = await response.json();
             let stringifyData = JSON.stringify(responsedata.userWithFiles.Dataset);
 
-            // const ertLocation = responsedata.userWithFiles.Dataset[0].Dataset.map(Dataset => [Dataset['Location']]); //Extract Location
             const ertRoom = responsedata.userWithFiles.Dataset[0].Dataset.map(Dataset =>[Dataset['Room'],Dataset['Size']]); //Extract Room
             setroomData([ertRoom]);
 
-            const ertCourse = responsedata.userWithFiles.Dataset[1].Dataset.map(Dataset => [Dataset['Enrollment Quota'],Dataset['Course Code'],Dataset['Course Name'],Dataset['Year'],Dataset['Semester'],Dataset['Lecturer'],Dataset['Group'],Dataset['HMS'],Dataset['Programme Code'],Dataset['Slot1'],Dataset['Slot2']]); //Extract Enrollment Quota
+            const ertCourse = responsedata.userWithFiles.Dataset[1].Dataset.map(Dataset => [Dataset['Enrollment Quota'],Dataset['Course Code'],Dataset['Course Name'],Dataset['Year'],Dataset['Semester'],Dataset['Lecturer'],Dataset['Group'],Dataset['HMS'],Dataset['Programme Code'],Dataset['Slot1'],Dataset['Slot2'],Dataset['Lecture Code']]); //Extract Enrollment Quota
             setcourseData([ertCourse]);
 
             if (!response.ok){
@@ -48,6 +62,7 @@ const ArraySchedule = (props) => {
             setIsLoading(true);
             }catch(err){
                 console.log(err.message);
+                window.location.href = "/"
             }
             setIsLoading(false);
             
@@ -56,11 +71,12 @@ const ArraySchedule = (props) => {
     },[userId]);
 
         if(!isLoading && loadedFile){
-            const testData = [1,2,3,4,5,6,7,8,9];
             const EnrollmentQuota = [];
             const CourseCode = [];
+            const CourseName = [];
             const HMS = [];
             const lecturerData = []
+            const lecturerCodeData = []
             const roomName = [];
             const roomSize = [];
             const filterData50  = [];
@@ -71,61 +87,78 @@ const ArraySchedule = (props) => {
             const filterDataElective100  = [];
             const filterDataElective200  = [];
             const filterDataElective500  = [];
-            const dupeData  = [];
+            const totalAmountofData  = [];
+            var totalAmountofDataSlottedIn = 0;
             const room = []
             room.push(roomData[0])
             
-            let hardConstraintViolated = 0;
-            let softConstraintViolated = 0;
-            //console.log(courseData[0][0][1]);
+
             for(let i = 0; i <courseData[0].length; i++){
                 let enrollment = [courseData[0][i][0]];
                 let code = [courseData[0][i][1]];
                 let hms = [courseData[0][i][7]];
                 let lecturer = [courseData[0][i][5]];
+                let courseName = [courseData[0][i][2]]
+                let lecturerCode = [courseData[0][i][11]];
                 enrollment.reduce(function(results, item, index, array){
                     results[index] = item;
                     EnrollmentQuota.push(item);
-                    //console.log(results)
                 },{});
                 code.reduce(function(results, item, index, array){
                     results[index] = item;
                     CourseCode.push(item);
-                    //console.log(results)
                 },{});
                 hms.reduce(function(results, item, index, array){
                     results[index] = item;
                     HMS.push(item);
-                    //console.log(results)
                 },{});
                 lecturer.reduce(function(results, item, index, array){
                     results[index] = item;
                     lecturerData.push(item);
-                    //console.log(results)
+                },{});
+                courseName.reduce(function(results, item, index, array){
+                    results[index] = item;
+                    CourseName.push(item);
+                },{});
+                lecturerCode.reduce(function(results, item, index, array){
+                    results[index] = item;
+                    lecturerCodeData.push(item);
                 },{});
             }
-
             for(let i = 0; i <roomData[0].length; i++){
                 let name = [roomData[0][i][0]];
                 let size = [roomData[0][i][1]];
                 name.reduce(function(results, item, index, array){
                     results[index] = item;
                     roomName.push(item);
-                    //console.log(results)
                 },{});
                 size.reduce(function(results, item, index, array){
                     results[index] = item;
                     roomSize.push(item);
-                    //console.log(results)
                 },{});
             }
- 
-            
-            const notDuplicatesRoom = roomSize.filter((item, index) => index == roomSize.indexOf(item));
 
             const notDuplicatesLecturer = lecturerData.filter((item, index) => index == lecturerData.indexOf(item));
+            const notDuplicatesCodeLecturer = lecturerCodeData.filter((item, index) => index == lecturerCodeData.indexOf(item));
             notDuplicatesLecturer.pop();
-            //console.log(notDuplicatesLecturer)
+            notDuplicatesCodeLecturer.pop();
+             for(let i = 0; i < notDuplicatesLecturer.length; i++){
+                 notDuplicatesLecturerArray.push(notDuplicatesLecturer[i]);
+             }
+
+             for(let i = 0; i < notDuplicatesCodeLecturer.length; i++){
+                notDuplicatesLecturerCodeArray.push(notDuplicatesCodeLecturer[i]);
+            }
+
+
+             CourseCode.pop()
+             for(let i = 0 ; i < CourseCode.length; i++){
+                courseCodeArray.push(CourseCode[i]);
+             }
+
+             for(let i = 0 ; i < CourseName.length; i++){
+                courseNameArray.push(CourseName[i]);
+             }
 
 
             let courseDataXElective = []
@@ -134,18 +167,15 @@ const ArraySchedule = (props) => {
 
             //saparate faculty course with the elective course
             for(let i=0; i< courseData[0].length; i++){
-                if(courseData[0][i][1].slice(0,3) != 'TMU'){
+                if(courseData[0][i][8] != 'ELECTIVE'){
                     courseData[0][i].splice()
-                    if(  courseData[0][i][1].slice(0,3) != 'TMX'){
-                        courseData[0][i].splice()
-                        courseDataXElective.push(courseData[0][i])
-                    }
+                    courseDataXElective.push(courseData[0][i])
                 }
             }
 
             //saparate elective course with the faculty course
             for(let i=0; i< courseData[0].length; i++){
-                if(courseData[0][i][1].slice(0,3) == 'TMU' ||  courseData[0][i][1].slice(0,3) == 'TMX'){
+                if(courseData[0][i][8] == 'ELECTIVE'){
                     courseDataWithElective.push(courseData[0][i])
                 }
             }
@@ -166,7 +196,6 @@ const ArraySchedule = (props) => {
                             filterData500.push(courseDataXElective[i]);
                         }
                 }
-                //console.log(filterData50)
 
                 //insert data without faculty courses into correct room capacity
                 for(let i = 0; i< courseDataWithElective.length;i++){
@@ -184,20 +213,17 @@ const ArraySchedule = (props) => {
                         filterDataElective500.push(courseDataWithElective[i]);
                     }
                 }
-                // console.log(filterDataElective50);
-                // console.log(filterDataElective100);
-                // console.log(filterDataElective200);
-                // console.log(filterDataElective500);
 
 
             let roomUnder50 = []
             let roomUnder100 = []
             let roomUnder200 = []
             let roomUnder500 = []
+
+            //separate room 
             const checkNumberofRoom = () => {
                 for(let i = 0; i < roomData[0].length; i++){
                     let room = roomData[0][i][1]
-                    //console.log(roomData[0][i][1]);
                     if(room < 50){
                         roomUnder50.push(room)
                     }else if(room > 50 && room < 100){
@@ -213,15 +239,23 @@ const ArraySchedule = (props) => {
             }
             checkNumberofRoom();
 
-
-            const createArray = (data) => {
-                var result = []
-
-                    for(let i = 0; i<data; i++){
-                        result[i] = []
+            const totalAmountData = () => {
+                for(let i = 0; i< courseDataXElective.length;i++){
+                    for(let j = 0; j <courseDataXElective[i][7]; j++){
+                        totalAmountofData.push(courseDataXElective[i]);
                     }
-                return result;
+                }
             }
+            totalAmountData()
+
+            const totalAmountDataElective = () => {
+                for(let i = 0; i< courseDataWithElective.length;i++){
+                    for(let j = 0; j <courseDataWithElective[i][7]; j++){
+                        totalAmountofData.push(courseDataWithElective[i]);
+                    }
+                }
+            }
+            totalAmountDataElective()
 
             let DataArray50 = roomUnder50.length * 38;
             let DataArray100 = roomUnder100.length * 38;
@@ -233,394 +267,37 @@ const ArraySchedule = (props) => {
             let startIndex200 = DataArray50+ DataArray100-1
             let startIndex500 = DataArray50 +DataArray100+DataArray200-1
 
+            let LastIndex50 = DataArray50
+            let LastIndex100 = DataArray50 + DataArray100 
+            let LastIndex200 = DataArray50 + DataArray100 + DataArray200
+            let LastIndex500 = DataArray50 + DataArray100 + DataArray200 + DataArray500
+
             let DataArrayElective50 = roomUnder50.length * 10;
             let DataArrayElective100 = roomUnder100.length * 10;
             let DataArrayElective200 = roomUnder200.length * 10;
             let DataArrayElective500 = roomUnder500.length * 10;
             let combineArrayElective = DataArrayElective50 + DataArrayElective100 + DataArrayElective200 + DataArrayElective500
 
+            let startIndexElective100 = DataArrayElective50-1
+            let startIndexElective200 = DataArrayElective50+ DataArrayElective100-1
+            let startIndexElective500 = DataArrayElective50 +DataArrayElective100+DataArrayElective200-1
+
+            let LastIndexElective50 = DataArrayElective50
+            let LastIndexElective100 = DataArrayElective50 + DataArrayElective100 
+            let LastIndexElective200 = DataArrayElective50 + DataArrayElective100 + DataArrayElective200
+            let LastIndexElective500 = DataArrayElective50 + DataArrayElective100 + DataArrayElective200 + DataArrayElective500
+
+
 //----------------------------------------------------------------------------------------------------------------------------------------
 
 var checkTotalHardContraintsAll = 0
 var checkTotalSoftContraintsAll = 0
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
 
 const antSystem = () => {
 
 //______________________________________________________________________________________________________________________________________________
 //Faculty courses
 
-const checking_minus_1 = (array,array2,data) => {
-    let k =0
-    let b =0
-    let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
-
-    for(let u = 0; u < array.length; u++){
-        try{
-            //if( array[u] != 100 && array[u][5] == data[5] && array[u-1] != 100 && array[u-1][5] == data[5]){
-            if(array[u] != 100 && data[5] != array[u][5] || data[6] == array[u][6] && array[u-1] != 100 && data[5] == array[u-1][5] || data[6] == array[u-1][6]){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray = b*38
-                    if( array[u+indexArray] ==100 && array[u+indexArray-1] ==100){
-                        array[u+indexArray] = 0
-                        array[u+indexArray-1] = 0
-                    }
-                    if( array[u-indexArray] ==100 && array[u-indexArray-1] ==100){
-                        array[u-indexArray] = 0
-                        array[u-indexArray-1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-
-    for(let u = 0; u < array2.length; u++){
-        try{
-            //if( array2[u] != 100 && array2[u][5] == data[5] && array2[u-1] != 100 && array2[u-1][5] == data[5]){
-            if(array2[u] != 100 && data[5] != array2[u][5] || data[6] == array2[u][6] && array2[u-1] != 100 && data[5] == array2[u-1][5] || data[6] == array2[u-1][6]){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray2 = b*38
-                    if( array2[u+indexArray2] ==100 && array2[u+indexArray2-1] ==100){
-                        array2[u+indexArray2] = 0
-                        array2[u+indexArray2-1] = 0
-                    }
-                    if( array2[u-indexArray2] ==100 && array2[u-indexArray2-1] ==100){
-                        array2[u-indexArray2] = 0
-                        array2[u-indexArray2-1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    return array
-
-
-}
-
-const checking_plus_1 = (array,array2,data) => {
-
-    let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
-
-    for(let u = 0; u < array.length; u++){
-        try{
-            //if( array[u] != 100 && array[u][5] == data[5] && array[u+1] != 100 && array[u+1][5] == data[5]){
-            if( array[u] != 100 && data[5] == array[u][5] || data[6] == array[u][6] && array[u+1] != 100 && data[5] == array[u+1][5] || data[6] == array[u+1][6]){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray = b*38
-                    if( array[u+indexArray] ==100 && array[u+indexArray+1] ==100){
-                        array[u+indexArray] = 0
-                        array[u+indexArray+1] = 0
-                    }
-                    if( array[u-indexArray] ==100 && array[u-indexArray+1] ==100){
-                        array[u-indexArray] = 0
-                        array[u-indexArray+1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-
-    for(let u = 0; u < array2.length; u++){
-        try{
-            //if( array2[u] != 100 && array2[u][5] == data[5] && array2[u+1] != 100 && array2[u+1][5] == data[5]){
-            if( array2[u] != 100 && data[5] == array2[u][5] || data[6] == array2[u][6] && array2[u+1] != 100 && data[5] == array2[u+1][5] || data[6] == array2[u+1][6]){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray2 = b*38
-                    if( array2[u+indexArray2] ==100 && array2[u+indexArray2+1] ==100){
-                        array2[u+indexArray2] = 0
-                        array2[u+indexArray2+1] = 0
-                    }
-                    if( array2[u-indexArray2] ==100 && array2[u-indexArray2+1] ==100){
-                        array2[u-indexArray2] = 0
-                        array2[u-indexArray2+1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    return array
-}
-
-const checking_3 = (array,array2,data) =>{
-
-
-    let k =0
-    let b =0
-    let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
-
-    for(let u = 0; u < array.length; u++){
-        try{
-            //if( array[u] != 100 && array[u][5] == data[5] && array[u-1] != 100 && array[u-1][5] == data[5] && array[u+1] != 100 && array[u+1][5] == data[5]){
-            if( array[u] != 100 && data[5] == array[u][5] || data[6] == array[u][6]  && array[u-1] != 100 && data[5] == array[u-1][5] && array[u+1] != 100 && data[5] == array[u+1][5] || data[6] == array[u-1][6] && array[u+1] != 100 && data[6] == array[u+1][6]){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray = b*38
-
-                    if( array[u+indexArray] ==100 && array[u+indexArray-1] ==100){
-                        array[u+indexArray] = 0
-                        array[u+indexArray-1] = 0
-                    }
-                    if( array[u-indexArray] ==100 && array[u-indexArray-1] ==100){
-                        array[u-indexArray] = 0
-                        array[u-indexArray-1] = 0
-                    }
-                    if( array[u+indexArray] ==100 && array[u+indexArray+1] ==100){
-                        array[u+indexArray] = 0
-                        array[u+indexArray+1] = 0
-                    }
-                    if( array[u-indexArray] ==100 && array[u-indexArray+1] ==100){
-                        array[u-indexArray] = 0
-                        array[u-indexArray+1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-
-    for(let u = 0; u < array2.length; u++){
-        try{
-            //if( array2[u] != 100 && array2[u][5] == data[5] && array2[u-1] != 100 && array2[u-1][5] == data[5] && array2[u+1] != 100 && array2[u+1][5] == data[5]){
-            if( array2[u] != 100 && data[5] == array2[u][5] || data[6] == array2[u][6]  && array2[u-1] != 100 && data[5] == array2[u-1][5] && array2[u+1] != 100 && data[5] == array2[u+1][5] || data[6] == array2[u-1][6] && array2[u+1] != 100 && data[6] == array2[u+1][6]){
-                for(let b =0; b < totalRoom2; b++){
-                    let indexArray2 = b*38
-
-                    if( array2[u+indexArray2] ==100 && array2[u+indexArray2-1] ==100){
-                        array2[u+indexArray2] = 0
-                        array2[u+indexArray2-1] = 0
-                    }
-                    if( array2[u-indexArray2] ==100 && array2[u-indexArray2-1] ==100){
-                        array2[u-indexArray2] = 0
-                        array2[u-indexArray2-1] = 0
-                    }
-                    if( array2[u+indexArray2] ==100 && array2[u+indexArray2+1] ==100){
-                        array2[u+indexArray2] = 0
-                        array2[u+indexArray2+1] = 0
-                    }
-                    if( array2[u-indexArray2] ==100 && array2[u-indexArray2+1] ==100){
-                        array2[u-indexArray2] = 0
-                        array2[u-indexArray2+1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    return array
-}
-
-const checking_only_1 = (array,array2,data) => {
-
-    let k =0
-    let b =0
-    let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
-
-    for(let u = 0; u < array.length; u++){
-        try{
-            if( array[u] != 100 && data[5] == array[u][5] || data[6] == array[u][6]){
-                for(let b =0; b < totalRoom; b++){
-                    if( array[u+38*b] ==100){
-                        array[u+38*b] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    for(let u = 0; u < array2.length; u++){
-        try{
-            if( array2[u] != 100 && data[5] == array2[u][5] || data[6] == array2[u][6]){
-                for(let b =0; b < totalRoom2; b++){
-                    if( array2[u+38*b] ==100){
-                        array2[u+38*b] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    return array
-
-}
-
-const changeRowtoZero_minus_1 = (array,array2,index1,index2) => {
-    let k =0
-    let b =0
-    let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
-
-    for(let u = 0; u < array.length; u++){
-        try{
-            if( u == index1 && u-1 == index2){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray = b*38
-                    if( array[u+indexArray] ==100 && array[u+indexArray-1] ==100){
-                        array[u+indexArray] = 0
-                        array[u+indexArray-1] = 0
-                    }
-                    if( array[u-indexArray]==100 && array[u-indexArray-1] == 100){
-                        array[u-indexArray] = 0
-                        array[u-indexArray-1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-
-    for(let u = 0; u < array2.length; u++){
-        try{
-            if( u == index1 && u-1 == index2){
-                for(let b =0; b < totalRoom2; b++){
-                    let indexArray2 = b*38
-                    if( array2[u+indexArray2] ==100 && array2[u+indexArray2-1] ==100){
-                        array2[u+indexArray2] = 0
-                        array2[u+indexArray2-1] = 0
-                    }
-                    if( array2[u-indexArray2]==100 && array2[u-indexArray2-1] == 100){
-                        array2[u-indexArray2] = 0
-                        array2[u-indexArray2-1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    return array    
-}
-
-const changeRowtoZero_plus_1 = (array,array2,index1,index2) => {
-    let k =0
-    let b =0
-    let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
-
-    for(let u = 0; u < array.length; u++){
-        try{
-            if( u == index1 && u-1 == index2){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray = b*38
-                    if( array[u+indexArray] ==100 && array[u+indexArray+1] ==100){
-                        array[u+indexArray] = 0
-                        array[u+indexArray+1] = 0
-                    }
-                    if( array[u-indexArray]==100 && array[u-indexArray+1] == 100){
-                        array[u-indexArray] = 0
-                        array[u-indexArray+1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-
-    for(let u = 0; u < array2.length; u++){
-        try{
-            if( u == index1 && u-1 == index2){
-                for(let b =0; b < totalRoom2; b++){
-                    let indexArray2 = b*38
-                    if( array2[u+indexArray2] ==100 && array2[u+indexArray2+1] ==100){
-                        array2[u+indexArray2] = 0
-                        array2[u+indexArray2+1] = 0
-                    }
-                    if( array2[u-indexArray2]==100 && array2[u-indexArray2+1] == 100){
-                        array2[u-indexArray2] = 0
-                        array2[u-indexArray2+1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    return array    
-}
-
-const changeRowtoZero_1 = (array,array2,index1) => {
-    let k =0
-    let b =0
-    let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
-
-    for(let u = 0; u < array.length; u++){
-        try{
-            if( u == index1){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray = b*38
-                    if( array[u+indexArray] ==100 ){
-                        array[u+indexArray] = 0
-                    }
-                    if( array[u-indexArray] ==100 ){
-                        array[u-indexArray] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-
-    for(let u = 0; u < array2.length; u++){
-        try{
-            if( u == index1){
-                for(let b =0; b < totalRoom2; b++){
-                    let indexArray2 = b*38
-                    if( array2[u+indexArray2] ==100 ){
-                        array2[u+indexArray2] = 0
-                    }
-                    if( array2[u-indexArray2] ==100 ){
-                        array2[u-indexArray2] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    return array    
-}
-
-const changeRowtoZero_3_ = (array,array2,index1,index2,index3) => {
-    let k =0
-    let b =0
-    let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
-
-    for(let u = 0; u < array.length; u++){
-        try{
-            if( u == index1 && u-1 == index2 && u+1 == index3){
-                for(let b =0; b < totalRoom; b++){
-                    let indexArray = b*38
-                    if( array[u+indexArray] ==100 && array[u+indexArray-1] ==100  && array[u+indexArray+1] == 100 ){
-                        array[u+indexArray] = 0
-                        array[u+indexArray-1] = 0
-                        array[u+indexArray+1] = 0
-                    }
-                    if( array[u-indexArray] ==100 && array[u-indexArray-1] ==100  && array[u-indexArray+1] == 100){
-                        array[u-indexArray] = 0
-                        array[u-indexArray-1] = 0
-                        array[u-indexArray+1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-
-
-    for(let u = 0; u < array2.length; u++){
-        try{
-            if( u == index1 && u-1 == index2 && u+1 == index3){
-                for(let b =0; b < totalRoom2; b++){
-                    let indexArray = b*38
-                    if( array2[u+indexArray] ==100 && array2[u+indexArray-1] ==100  && array2[u+indexArray+1] == 100 ){
-                        array2[u+indexArray] = 0
-                        array2[u+indexArray-1] = 0
-                        array2[u+indexArray+1] = 0
-                    }
-                    if( array2[u-indexArray] ==100 && array2[u-indexArray-1] ==100  && array2[u-indexArray+1] == 100){
-                        array2[u-indexArray] = 0
-                        array2[u-indexArray-1] = 0
-                        array2[u-indexArray+1] = 0
-                    }
-                }
-            }
-        }catch{}
-    }
-    return array    
-}
 
 const changeToZero = (array) => {
     for(let i = 0; i < array.length; i++){
@@ -632,48 +309,54 @@ const changeToZero = (array) => {
 }
 
 
-const checkTest = (array,array2,data1) => {
-    let count =0
+const checking_1 = (array,array2,data) => {
+
     let totalRoom = array.length / 38
-    let totalRoom2 = array2.length / 38
 
-    for(let x= 1 ; x <= totalRoom ; x++){
-     let indexArray = (x * 38)
+    for(let u = 0; u < array.length; u++){
         try{
-         for(let i = 1; i<array.length ; i++){
-                //if(array[i+indexArray] != 100 && array[i+indexArray] != undefined && array[i+indexArray] != 1 && array[i+indexArray] != 0 ){
-                    try{
-                        if(data1 == array[i][5]){
-                            if(array[i+indexArray] == 100){
-                                array[i+indexArray] = 0
-                            }
-
-                         }
-                    }catch{}
-                //}    
+            if( array[u] != 100 ){
+                if(data[5] == array[u][5] || data[6] == array[u][6]){
+                    for(let b =0; b < totalRoom; b++){
+                        let indexArray = b*38
+                        if( array[u+indexArray] ==100){
+                            array[u+indexArray] = 0
+                        }
+                        if( array[u-indexArray] ==100){
+                            array[u-indexArray] = 0
+                        }
+                    }
+                }
             }
         }catch{}
     }
-
-    for(let x= 1 ; x <= totalRoom2 ; x++){
-        let indexArray2 = (x * 38)
-           try{
-            for(let i = 1; i<array2.length ; i++){
-                   //if(array2[i+indexArray2] != 100 && array2[i+indexArray2] != undefined && array2[i+indexArray2] != 1 && array2[i+indexArray2] != 0 ){
-                       try{
-                           if(data1 == array2[i][5]){
-                               if(array2[i+indexArray2] == 100){
-                                   array2[i+indexArray2] = 0
-                               }
-   
-                            }
-                       }catch{}
-                   //}    
-               }
-           }catch{}
-       }
     return array
 }
+
+const checking_1_Elective = (array,array2,data) => {
+
+    let totalRoom = array.length / 10
+
+    for(let u = 0; u < array.length; u++){
+        try{
+            if( array[u] != 100 ){
+                if(data[5] == array[u][5] || data[6] == array[u][6]){
+                    for(let b =0; b < totalRoom; b++){
+                        let indexArray = b*10
+                        if( array[u+indexArray] ==100){
+                            array[u+indexArray] = 0
+                        }
+                        if( array[u-indexArray] ==100){
+                            array[u-indexArray] = 0
+                        }
+                    }
+                }
+            }
+        }catch{}
+    }
+    return array
+}
+
 
 
 
@@ -688,6 +371,199 @@ const array1DCombine = (data) => {
 var AntArrCombine = array1DCombine(combineArray);
 
 
+const array1DElectiveCombine = (data) => {
+    var result = []
+
+    for(let i = 0; i< data; i++){
+        result[i]= 100;
+    }
+    return result;
+}
+var AntArrCombineElective = array1DElectiveCombine(combineArrayElective);
+
+
+const checkDay = (combine,array,index) => {
+    let c = 0
+    let z = index
+    while (c != 1){
+        if(z >= 0 && z < 10){
+            zeroMonday(array)
+            zeroMondayCom(combine)
+            c = 1
+        }
+        else if( z >= 10 && z < 20){
+            zeroTuesday(array)
+            zeroTuesdayCom(combine)
+            c = 1
+        }
+        else if( z >= 20 && z < 30){
+            zeroThursday(array)
+            zeroThursdayCom(combine)
+            c = 1
+        }
+        else if( z >= 30 && z< 38){
+            zeroFriday(array)
+            zeroFridayCom(combine)
+            c = 1
+        }
+        else(
+            z -= 38
+        )
+    }
+}
+
+const zeroMonday = (array) => {
+    let totalRoom2 = array.length / 38
+
+    for(let u = 0; u < 10; u++){
+        try{
+            for(let b =0; b < totalRoom2; b++){
+                let indexArray = b*38
+                if( array[u+indexArray] ==100){
+                    array[u+indexArray] = 0
+                }
+                if( array[u-indexArray] ==100){
+                    array[u-indexArray] = 0
+                }
+            }   
+        }catch{}
+    }
+    return array
+}
+const zeroMondayCom = (combine) => {
+    let totalRoom2 = combine.length / 38
+
+    for(let u = 0; u < 10; u++){
+        try{
+            for(let b =0; b < totalRoom2; b++){
+                let indexArray = b*38
+                if( combine[u+indexArray] ==100){
+                    combine[u+indexArray] = 0
+                }
+                if( combine[u-indexArray] ==100){
+                    combine[u-indexArray] = 0
+                }
+            }   
+        }catch{}
+    }
+    return combine
+}
+
+const zeroTuesday = (array) => {
+    let totalRoom2 = array.length / 38
+
+    for(let u = 10; u < 20; u++){
+        try{
+            for(let b =0; b < totalRoom2; b++){
+                let indexArray = b*38
+                if( array[u+indexArray] ==100){
+                    array[u+indexArray] = 0
+                }
+                if( array[u-indexArray] ==100){
+                    array[u-indexArray] = 0
+                }
+            }   
+        }catch{}
+    }
+    return array
+}
+const zeroTuesdayCom = (combine) => {
+    let totalRoom2 = combine.length / 38
+
+    for(let u = 10; u < 20; u++){
+        try{
+            for(let b =0; b < totalRoom2; b++){
+                let indexArray = b*38
+                if( combine[u+indexArray] ==100){
+                    combine[u+indexArray] = 0
+                }
+                if( combine[u-indexArray] ==100){
+                    combine[u-indexArray] = 0
+                }
+            }   
+        }catch{}
+    }
+    return combine
+}
+
+const zeroThursday = (array) => {
+    let totalRoom2 = array.length / 38
+
+    for(let u = 20; u < 30; u++){
+        try{
+            for(let b =0; b < totalRoom2; b++){
+                let indexArray = b*38
+                if( array[u+indexArray] ==100){
+                    array[u+indexArray] = 0
+                }
+                if( array[u-indexArray] ==100){
+                    array[u-indexArray] = 0
+                }
+            }   
+        }catch{}
+    }
+    return array
+}
+const zeroThursdayCom = (combine) => {
+    let totalRoom2 = combine.length / 38
+
+    for(let u = 20; u < 30; u++){
+        try{
+            for(let b =0; b < totalRoom2; b++){
+                let indexArray = b*38
+                if( combine[u+indexArray] ==100){
+                    combine[u+indexArray] = 0
+                }
+                if( combine[u-indexArray] ==100){
+                    combine[u-indexArray] = 0
+                }
+            }   
+        }catch{}
+    }
+    return combine
+}
+
+const zeroFriday = (array) => {
+    let totalRoom2 = array.length / 38
+
+    for(let u = 30; u < 38; u++){
+        try{
+            for(let b =0; b < totalRoom2; b++){
+                let indexArray = b*38
+                if( array[u+indexArray] ==100){
+                    array[u+indexArray] = 0
+                }
+                if( array[u-indexArray] ==100){
+                    array[u-indexArray] = 0
+                }
+            }   
+        }catch{}
+    }
+    return array
+}
+const zeroFridayCom = (combine) => {
+    let totalRoom2 = combine.length / 38
+
+    for(let u = 30; u < 38; u++){
+        try{
+            for(let b =0; b < totalRoom2; b++){
+                let indexArray = b*38
+                if( combine[u+indexArray] ==100){
+                    combine[u+indexArray] = 0
+                }
+                if( combine[u-indexArray] ==100){
+                    combine[u-indexArray] = 0
+                }
+            }   
+        }catch{}
+    }
+    return combine
+}
+
+
+
+
+
 //create 1d array for dataset less than 50
 const array1D50 = (data) => {
     var result = []
@@ -699,323 +575,220 @@ const array1D50 = (data) => {
 }
 var AntArr50 = array1D50(DataArray50);
 
-let insertedData50_Slot2_2 = []
-let insertedData50_Slot2_1= []
 
-let arrayLength50 =  DataArray50
 const AntAlgoInsert50 = (array,combine) => {
-
-    //array.length = 1064 (last index = 1063)
-    //arrayLength50 = 646 (last index = 645)
 
 
     let test = []
     let k = 0;
     let k2 =0
     let k3 =0
-    let k4=0
-    let k5 =0
-    let count = 0;
-    let b = 1
-
-    
-    let remainderArray = []
-    let remainderArraySlot1 = []
-    let totalRoom = array.length / 38
+    let hms2 = []
+    let hms3 = []
+    let hms4 = []
 
 
         for(let x=0; x<filterData50.length;x++){
+            if(filterData50[x][7] == 2){
+                hms2.push(filterData50[x])
+            }
+            if(filterData50[x][7] == 4){
+                hms4.push(filterData50[x])
+            }
+            if(filterData50[x][7] == 3){
+                hms3.push(filterData50[x])
+            }
             test.push(filterData50[x]);
         }
 
+        //slot in  2 hours of meeting student course
         for(let i = array.length-1;i>0;i--){
-            if(k < test.length){
-            let hourMS = test[k][7]    
-            changeToZero(array);
-            changeToZero(combine);
-
-            if(hourMS == 2){
-                const j = Math.floor(Math.random()*(i+1));
-                checking_minus_1(combine,array,test[k])
-                checking_plus_1(combine,array,test[k])
-                if(array[i] == 100 && array[i-1] == 100){
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k];
-                        array[j-1] = test[k];
-                        combine[j] = test[k];
-                        combine[j-1] = test[k];
-                        changeRowtoZero_minus_1(combine,array,i,i-1)
-                 }
-                 else if(array[i] == 100 && array[i+1] == 100){
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k];
-                        array[j+1] = test[k];
-                        combine[j] = test[k];
-                        combine[j+1] = test[k];
-                        changeRowtoZero_plus_1(combine,i,i+1)
-                }
-                else{
-                    remainderArray.push(test[k]);
-                }
-
+            if(k < hms2.length){
+                checking_1(combine,array,hms2[k])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+                    if(combine[j] == 100 && combine[j-1] == 100 && j-1 != -1){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j] = hms2[k];
+                            combine[j-1] = hms2[k];
+                            c = 1
+                    }
+                    else if(combine[j] == 100 && combine[j+1] == 100 && j+1 != startIndex100){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j] = hms2[k];
+                            combine[j+1] = hms2[k];
+                            c = 1
+                    }
+                }    
             }
-            }
+            changeToZero(array)
+            changeToZero(combine)
             k++  
         }
 
-
+        //slot in  4 hours of meeting student course 
         for(let i = array.length-1;i>0;i--){
-            if(k4 < test.length){
-            let hourMS = test[k4][7]    
+            if(k2 < hms4.length){
+                checking_1(combine,array,hms4[k2])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+                    if(combine[j] == 100 && combine[j-1] == 100 && j-1 != -1){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j] = hms4[k2];
+                            combine[j-1] = hms4[k2];
+                            checkDay(combine,array,j)
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                if(combine[v] == 100 && combine[v-1] == 100 && v-1 != -1){
+                                    
+                                    array[v] = -1;
+                                    array[v-1] = -1;
+                                    combine[v] = hms4[k2];
+                                    combine[v-1] = hms4[k2];
+                                    b = 1
+                                }
+                                else if(combine[v] == 100 && combine[v+1] == 100 && v+1 != startIndex100){
+                                    array[v] = -1;
+                                    array[v+1] = -1;
+                                    combine[v] = hms4[k2];
+                                    combine[v+1] = hms4[k2];
+                                    b = 1
+                                }
+                            }
+                            c = 1
+                    }
+                    else if(combine[j] == 100 && combine[j+1] == 100 && j+1 != startIndex100){
+                            
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j] = hms4[k2];
+                            combine[j+1] = hms4[k2];
+                            checkDay(combine,array,j)
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                if(combine[p] == 100 && combine[p-1] == 100 && p-1 != -1){
+                                    array[p] = -1;
+                                    array[p-1] = -1;
+                                    combine[p] = hms4[k2];
+                                    combine[p-1] = hms4[k2];
+                                    z = 1
+                                }
+                                else if(combine[p] == 100 && combine[p+1] == 100 && p+1 != startIndex100){
+                                    array[p] = -1;
+                                    array[p+1] = -1;
+                                    combine[p] = hms4[k2];
+                                    combine[p+1] = hms4[k2];
+                                    z = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
+            }
             changeToZero(array)
             changeToZero(combine)
-            if(hourMS == 4){
-                checking_minus_1(combine,array,test[k4]);
-                checking_plus_1(combine,array,test[k4])
-                const j = Math.floor(Math.random()*(i+1));
-                    if(array[i] == 100 && array[i-1] == 100 ){
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k4];
-                        array[j-1] = test[k4];
-                        combine[j] = test[k4];
-                        combine[j-1] = test[k4];
+            k2++  
+        }
 
-                        
-
-                        changeRowtoZero_minus_1(combine,array,j,j-1);
-                        if(array[i] == 100 && array[i-1] == 100){
-                            //checking_minus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i-1] = array[j-1];
-                            array[j] = test[k4];
-                            array[j-1] = test[k4];
-                            combine[j] = test[k4];
-                            combine[j-1] = test[k4];
-                            changeRowtoZero_minus_1(combine,array,j,j-1);
-                        }
-                        else if(array[i] == 100 && array[i+1] == 100){
-                            array[i] = array[j];
-                            array[i+1] = array[j+1];
-                            array[j] = test[k4];
-                            array[j+1] = test[k4];
-                            combine[j] = test[k4];
-                            combine[j+1] = test[k4];
-                            changeRowtoZero_plus_1(combine,array,j,j-1);
-                        }
-                        else{
-                            remainderArraySlot1.push(test[k4]);
-                        }
-                    }
-                    else if(array[i] == 100 && array[i+1] == 100 ){
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k4];
-                        array[j+1] = test[k4];
-                        combine[j] = test[k4];
-                        combine[j+1] = test[k4];
+        //slot in  3 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k3 < hms3.length){
+                checking_1(combine,array,hms3[k3])
+    
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));
                     
-                        changeRowtoZero_plus_1(combine,array,i,i-1);
-                        if(array[i] == 100 && array[i-1] == 100){
-                            array[i] = array[j];
-                            array[i-1] = array[j-1];
-                            array[j] = test[k4];
-                            array[j-1] = test[k4];
-                            combine[j] = test[k4];
-                            combine[j-1] = test[k4];
-                            changeRowtoZero_minus_1(combine,array,j,j-1);
-                        }
-                        else if(array[i] == 100 && array[i+1] == 100){
-                            array[i] = array[j];
-                            array[i+1] = array[j+1];
-                            array[j] = test[k4];
-                            array[j+1] = test[k4];
-                            combine[j] = test[k4];
-                            combine[j+1] = test[k4];
-                            changeRowtoZero_plus_1(combine,array,j,j-1);
-                        }
-                        else{
-                            remainderArraySlot1.push(test[k4]);
-                        }
+                    if(combine[j] == 100 && combine[j-1] == 100 && combine[j+1] == 100 && j-1 != -1 && j+1 != startIndex100 ){ // slot in 3 course at one time
+                        array[j] = -1;
+                        array[j-1] = -1;
+                        array[j+1] = -1;
+                        combine[j] = hms3[k3];
+                        combine[j-1] = hms3[k3];
+                        combine[j+1] = hms3[k3];
+                        c = 1
+                    }    
+                    else if(combine[j] == 100 && combine[j-1] == 100 && j-1 != -1){// slot in 2 course at one time
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j] = hms3[k3];
+                            combine[j-1] = hms3[k3];
+                            checkDay(combine,array,j)
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                if(combine[v] == 100){
+                                    array[v] = -1;
+                                    combine[v] = hms3[k3];
+                                    b = 1
+                                }
+                            }
+                            c = 1
                     }
-                    else{
-                        remainderArray.push(test[k4]);
+                    else if(combine[j] == 100 && combine[j+1] == 100 && j+1 != startIndex100){ // slot in 2 course at one time
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j] = hms3[k3];
+                            combine[j+1] = hms3[k3];
+                            checkDay(combine,array,j)
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                if(combine[p] == 100 ){
+                                    array[p] = -1;
+                                    combine[p] = hms3[k3];
+                                    z = 1
+                                }
+                            }
+                            c = 1
                     }
-
+                    else if(combine[j] == 100){ // slot in 1 course at one time
+                        array[j] = -1;
+                        combine[j] = hms3[k3];
+                        checkDay(combine,array,j)
+                            let m = 0 
+                            while(m != 1){
+                                const y = Math.floor(Math.random()*(i+1));
+                                if(combine[y] == 100 && combine[y-1] == 100 && y-1 != -1){
+                                    array[y] = -1;
+                                    array[y-1] = -1;
+                                    combine[y] = hms3[k3];
+                                    combine[y-1] = hms3[k3];
+                                    m = 1
+                                }
+                                else if(combine[y] == 100 && combine[y+1] == 100 && y+1 != startIndex100){
+                                    array[y] = -1;
+                                    array[y+1] = -1;
+                                    combine[y] = hms3[k3];
+                                    combine[y+1] = hms3[k3];
+                                    m = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
             }
-
-            changeToZero(array);
-            changeToZero(combine);
-            }
-            k4++  
-        }
-
-        for(let i = array.length-1;i>0;i--){
-            if(k5 < test.length){
-            let hourMS = test[k5][7]    
             changeToZero(array)
             changeToZero(combine)
-            if(hourMS == 3){
-                const j = Math.floor(Math.random()*(i+1)); 
-
-                    checking_3(combine,array,test[k5]);
-                    if( array[i] == 100 && array[i-1] == 100 && array[i+1]==100){// slot 3 hours in 1 go
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k5];
-                        array[j-1] = test[k5];
-                        array[j+1] = test[k5];
-                        combine[j] = test[k5];
-                        combine[j-1] = test[k5];
-                        combine[j+1] = test[k5];
-                        changeRowtoZero_3_(combine,array,i,i-1,i+1)
-                    }else if(array[i] == 100 && array[i-1] == 100){//slot 2 hours in 1 go
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k5];
-                        array[j-1] = test[k5];
-                        combine[j] = test[k5];
-                        combine[j-1] = test[k5];
-                        insertedData50_Slot2_1.push(test[k5])
-                        changeRowtoZero_minus_1(combine,array,i,i-1)
-                    }else if(array[i] == 100 && array[i+1] == 100){//slot 2 hours in 1 go
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k5];
-                        array[j+1] = test[k5];
-                        combine[j] = test[k5];
-                        combine[j+1] = test[k5];
-                        insertedData50_Slot2_1.push(test[k5])
-                        changeRowtoZero_plus_1(combine,array,i,i-1);
-                    }else if(array[i] == 100 ){//slot 1 hours in 1 go
-                        array[i] = array[j];
-                        array[j] = test[k5];
-                        combine[j] = test[k5];
-                        changeRowtoZero_1(combine,array,i)
-                        remainderArraySlot1.push(test[k5])
-                    }
-            }
-
-            changeToZero(array);
-            changeToZero(combine);
-            }
-            k5++  
+            k3++  
         }
 
-
- //changeToZero(array) 
-
- //fullfill the slot 3
- for(let x = 0; x< array.length; x++){
-    if(k3 < remainderArraySlot1.length){                
-        checking_plus_1(combine,array,remainderArraySlot1[k3])
-        if(array[x] == 100 && array[x+1] ==100){
-            array[x] = remainderArraySlot1[k3]
-            array[x+1] = remainderArraySlot1[k3]
-            combine[x] = remainderArraySlot1[k3]
-            combine[x+1] = remainderArraySlot1[k3]
-            changeRowtoZero_plus_1(combine,array,x,x+1)
-        }else{insertedData50_Slot2_2.push(remainderArraySlot1[k3])}
-     }
-     k3++   
- }
- changeToZero(array);
- changeToZero(combine);
-
- 
- for(let x = 0; x< array.length; x++){
-    if(k2 < remainderArray.length){
-        //checkTest(AntArr50,remainderArray[k2])
-        checking_plus_1(combine,array,remainderArray[k2])
-         if(array[x] == 100 && array[x+1] ==100){
-             //if(k2 < remainderArray.length){
-                //changeRowtoZero_plus_1(array,remainderArraySlot1[k2])
-                 array[x] = remainderArray[k2]
-                 array[x+1] = remainderArray[k2]
-                 combine[x] = remainderArray[k2]
-                 combine[x+1] = remainderArray[k2]
-                 changeRowtoZero_plus_1(combine,array,x,x+1)
-             }
-             try{
-                 let slot2 = remainderArray[k2][10]
-                 if(slot2 == 1){
-                     insertedData50_Slot2_1.push(remainderArray[k2])
-                 }
-                 if(slot2 == 2){
-                    insertedData50_Slot2_2.push(remainderArray[k2])
-                }
-             }catch{}
-     }
-     k2++   
- }
-  changeToZero(array)
-  changeToZero(combine)
-
-
- if(array[-1] != undefined){
-     insertedData50_Slot2_1.push(array[-1]);
- }
+        changeToZero(array)
+        changeToZero(combine)
 
     return array;
+    
 }
 
-//var AntArrIns50 = AntAlgoInsert50(AntArr50);
 var AntArrIns50 = AntAlgoInsert50(AntArr50,AntArrCombine);
-//console.log(AntArrIns50);
 
- const slot2Equal1for50= (array,combine) => {
-     let k = 0;
-     let test2 = []
-    let totalRoom = array.length / 38
-
-     for(let x = 0; x< array.length; x++){
-            if(array[x] == 100){
-                if(k < insertedData50_Slot2_1.length){
-                    checking_only_1(combine,array,insertedData50_Slot2_1[k])
-                    array[x] = insertedData50_Slot2_1[k]
-                    combine[x] = insertedData50_Slot2_1[k]
-                }
-                k++   
-         }
-     }
-     changeToZero(array)
-     changeToZero(combine)
-     return array;
- }
-slot2Equal1for50(AntArr50,AntArrCombine);
-
-
-
- const slot2Equal2for50 = (array,combine) => {
-     let k = 0;
-    let totalRoom = array.length / 38
-
-     for(let x = 0; x< array.length; x++){
-         if(array[x] == 100 && array[x+1] ==100){
-            if(k < insertedData50_Slot2_2.length){
-                checking_plus_1(combine,array,insertedData50_Slot2_2[k])
-                 array[x] = insertedData50_Slot2_2[k]
-                 array[x+1] = insertedData50_Slot2_2[k]
-                 combine[x] = insertedData50_Slot2_2[k]
-                 combine[x+1] = insertedData50_Slot2_2[k]
-             }
-             k++
-         }
-     }
-     changeToZero(array)
-     changeToZero(combine)
-
-     if(array[-1] != undefined){
-         insertedData50_Slot2_1.push(array[-1]);
-     }
-
-     return array;
- }
- slot2Equal2for50(AntArr50,AntArrCombine);
- //slot2Equal2for50(AntArrCombine);
 
 const checkAmountData50_2 = (array) => {
     let count = 0
@@ -1026,10 +799,7 @@ const checkAmountData50_2 = (array) => {
     }
     return count
 }
-//var checkAmount_2 = checkAmountData50_2(AntArrIns50)
 var checkAmount_2 = checkAmountData50_2(AntArrIns50)
-//console.log(AntArrIns50)
-//console.log("Amount of data: " +checkAmount_2);
 
 const checkAmountData50_0 = (array) => {
     let count = 0
@@ -1040,9 +810,7 @@ const checkAmountData50_0 = (array) => {
     }
     return count
 }
- //var checkAmount_0 = checkAmountData50_0(AntArr50)
- var checkAmount_0 = checkAmountData50_0(AntArr50)
-//console.log("zero counter: "+checkAmount_0);
+var checkAmount_0 = checkAmountData50_0(AntArr50)
 
 //______________________________________________________________________________________________________________________________________________
 
@@ -1052,7 +820,6 @@ const checkAmountData50_0 = (array) => {
 //create 1d array for dataset less than 100
 
 
-//create 1d array for dataset less than 100
 const array1D100 = (data) => {
     var result = []
 
@@ -1063,372 +830,221 @@ const array1D100 = (data) => {
 }
 var AntArr100 = array1D100(DataArray100);
 
-let insertedData100_Slot2_2 = []
-let insertedData100_Slot2_1= []
-
-let arrayLength100 =  DataArray100
 const AntAlgoInsert100 = (array,combine) => {
-
-    //array.length = 1064 (last index = 1063)
-    //array.length = 646 (last index = 645)
 
 
     let test = []
     let k = 0;
     let k2 =0
     let k3 =0
-    let k4=0
-    let k5 =0
-    let count = 0;
-    let b = 1
-
-    
-    let remainderArray = []
-    let remainderArraySlot1 = []
-    let totalRoom = array.length / 38
+    let hms2 = []
+    let hms3 = []
+    let hms4 = []
 
 
-    for(let x=0; x<filterData100.length;x++){
-        test.push(filterData100[x]);
-    }
+        for(let x=0; x<filterData100.length;x++){
+            if(filterData100[x][7] == 2){
+                hms2.push(filterData100[x])
+            }
+            if(filterData100[x][7] == 4){
+                hms4.push(filterData100[x])
+            }
+            if(filterData100[x][7] == 3){
+                hms3.push(filterData100[x])
+            }
+            test.push(filterData100[x]);
+        }
 
-        //for(let i = array.length-1;i>0;i--){
+        //slot in  2 hours of meeting student course
         for(let i = array.length-1;i>0;i--){
-            if(k < test.length){
-            let hourMS = test[k][7]    
-            //checkTest(AntArr100,test[k])
-            changeToZero(array);
-            changeToZero(combine);
-            if(hourMS == 2){
-                //changeToZero(array)
-                const j = Math.floor(Math.random()*(i+1));
-                // checking_minus_1(array,test[k])
-                // checking_plus_1(array,test[k])
-                checking_minus_1(combine,array,test[k])
-                checking_plus_1(combine,array,test[k])
-                //checking_only_1(array,test[k])
-                //checkTest(AntArr100,test[k])
-                if(array[i] == 100 && array[i-1] == 100){
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k];
-                        array[j-1] = test[k];
-                        combine[j+startIndex100] = test[k];
-                        combine[j+startIndex100-1] = test[k];
-                        //changeRowtoZero_minus_1(array,i,i-1)
-                        changeRowtoZero_minus_1(combine,array,i,i-1)
-                        //checking_minus_1(array,test[k])
-                 }
-                 else if(array[i] == 100 && array[i+1] == 100){
-                        //checking_plus_1(array,test[k])
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k];
-                        array[j+1] = test[k];
-                        combine[j+startIndex100] = test[k];
-                        combine[j+startIndex100+1] = test[k];
-                        //changeRowtoZero_plus_1(array,i,i+1)
-                        changeRowtoZero_plus_1(combine,i,i+1)
-                        //checking_plus_1(array,test[k])
-                }
-                else{
-                    remainderArray.push(test[k]);
-                }
-
+            if(k < hms2.length){
+                checking_1(combine,array,hms2[k])
+    
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+                    if(combine[j+startIndex100] == 100 && combine[j-1+startIndex100] == 100 && j-1 != LastIndex50){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex100] = hms2[k];
+                            combine[j-1+startIndex100] = hms2[k];
+                            c = 1
+                    }
+                    else if(combine[j+startIndex100] == 100 && combine[j+1+startIndex100] == 100 && j+1 != startIndex200){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex100] = hms2[k];
+                            combine[j+1+startIndex100] = hms2[k];
+                            c = 1
+                    }
+                }    
             }
-
-            // changeToZero(array);
-            // changeToZero(combine);
-            }
+            changeToZero(array)
+            changeToZero(combine)
             k++  
         }
 
 
+        //slot in  4 hours of meeting student course 
         for(let i = array.length-1;i>0;i--){
-            if(k4 < test.length){
-            let hourMS = test[k4][7]    
-            //checkTest(AntArr100,test[k])
-            changeToZero(array)
-            changeToZero(combine)
-            if(hourMS == 4){
-                // checking_minus_1(array,test[k]);
-                checking_minus_1(combine,array,test[k4]);
-                checking_plus_1(combine,array,test[k4])
-                //checking_only_1(array,test[k])
-                //checkTest(AntArr100,test[k])
-                const j = Math.floor(Math.random()*(i+1));
-                    if(array[i] == 100 && array[i-1] == 100 ){
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k4];
-                        array[j-1] = test[k4];
-                        combine[j+startIndex100] = test[k4];
-                        combine[j+startIndex100-1] = test[k4];
-
-                        
+            if(k2 < hms4.length){
+                checking_1(combine,array,hms4[k2])
     
-                        //const j = Math.floor(Math.random()*(i+1));
-                        changeRowtoZero_minus_1(combine,array,j,j-1);
-                        if(array[i] == 100 && array[i-1] == 100){
-                            //checking_minus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i-1] = array[j-1];
-                            array[j] = test[k4];
-                            array[j-1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100-1] = test[k4];
-                            //changeRowtoZero_minus_1(array,i,i-1)
-                            changeRowtoZero_minus_1(combine,array,j,j-1);
-                        }
-                        else if(array[i] == 100 && array[i+1] == 100){
-                            //checking_plus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i+1] = array[j+1];
-                            array[j] = test[k4];
-                            array[j+1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100+1] = test[k4];
-                            //changeRowtoZero_plus_1(array,j,j-1);
-                            changeRowtoZero_plus_1(combine,array,j,j-1);
-                        }
-                        else{
-                            remainderArraySlot1.push(test[k4]);
-                        }
-                        //count += 1
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+                    if(combine[j+startIndex100] == 100 && combine[j-1+startIndex100] == 100 && j-1 != LastIndex50){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex100] = hms4[k2];
+                            combine[j-1+startIndex100] = hms4[k2];
+                            checkDay(combine,array,j)
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                if(combine[v+startIndex100] == 100 && combine[v-1+startIndex100] == 100 && v-1 != LastIndex50){
+                                    array[v] = -1;
+                                    array[v-1] = -1;
+                                    combine[v+startIndex100] = hms4[k2];
+                                    combine[v-1+startIndex100] = hms4[k2];
+                                    b = 1
+                                }
+                                else if(combine[v+startIndex100] == 100 && combine[v+1+startIndex100] == 100 && v+1 != startIndex200){
+                                    array[v] = -1;
+                                    array[v+1] = -1;
+                                    combine[v+startIndex100] = hms4[k2];
+                                    combine[v+1+startIndex100] = hms4[k2];
+                                    b = 1
+                                }
+                            }
+                            c = 1
                     }
-                    else if(array[i] == 100 && array[i+1] == 100 ){
-                        //checking_plus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k4];
-                        array[j+1] = test[k4];
-                        combine[j+startIndex100] = test[k4];
-                        combine[j+startIndex100+1] = test[k4];
-                    
-                        changeRowtoZero_plus_1(combine,array,i,i-1);
-                        //const j = Math.floor(Math.random()*(i+1));
-                        if(array[i] == 100 && array[i-1] == 100){
-                        //checking_minus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i-1] = array[j-1];
-                            array[j] = test[k4];
-                            array[j-1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100-1] = test[k4];
-                            //changeRowtoZero_minus_1(array,i,i-1)
-                            changeRowtoZero_minus_1(combine,array,j,j-1);
-                        }
-                        else if(array[i] == 100 && array[i+1] == 100){
-                            //checking_plus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i+1] = array[j+1];
-                            array[j] = test[k4];
-                            array[j+1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100+1] = test[k4];
-                            //changeRowtoZero_plus_1(array,i,i-1);
-                            changeRowtoZero_plus_1(combine,array,j,j-1);
-                        }
-                        else{
-                            remainderArraySlot1.push(test[k4]);
-                        }
+                    else if(combine[j+startIndex100] == 100 && combine[j+1+startIndex100] == 100 && j+1 != startIndex200){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex100] = hms4[k2];
+                            combine[j+1+startIndex100] = hms4[k2];
+                            checkDay(combine,array,j)
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                if(combine[p+startIndex100] == 100 && combine[p-1+startIndex100] == 100 && p-1 != LastIndex50){
+                                    array[p] = -1;
+                                    array[p-1] = -1;
+                                    combine[p+startIndex100] = hms4[k2];
+                                    combine[p-1+startIndex100] = hms4[k2];
+                                    z = 1
+                                }
+                                else if(combine[p+startIndex100] == 100 && combine[p+1+startIndex100] == 100 && p+1 != startIndex200){
+                                    array[p] = -1;
+                                    array[p+1] = -1;
+                                    combine[p+startIndex100] = hms4[k2];
+                                    combine[p+1+startIndex100] = hms4[k2];
+                                    z = 1
+                                }
+                            }
+                            c = 1
                     }
-                    else{
-                        remainderArray.push(test[k4]);
-                    }
-
+                }    
             }
-
-            changeToZero(array);
-            changeToZero(combine);
-            }
-            k4++  
-        }
-
-        for(let i = array.length-1;i>0;i--){
-            if(k5 < test.length){
-            let hourMS = test[k5][7]    
-            //checkTest(AntArr100,test[k])
             changeToZero(array)
             changeToZero(combine)
-            if(hourMS == 3){
-                const j = Math.floor(Math.random()*(i+1)); 
-
-                    checking_3(combine,array,test[k5]);
-                    //checking_only_1(array,test[k])
-                    //checkTest(AntArr100,test[k])
-                    if( array[i] == 100 && array[i-1] == 100 && array[i+1]==100){// slot 3 hours in 1 go
-                        //checking_3(array,test[k]);
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k5];
-                        array[j-1] = test[k5];
-                        array[j+1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100-1] = test[k5];
-                        combine[j+startIndex100+1] = test[k5];
-                        changeRowtoZero_3_(combine,array,i,i-1,i+1)
-                    }else if(array[i] == 100 && array[i-1] == 100){//slot 2 hours in 1 go
-                        //checking_minus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k5];
-                        array[j-1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100-1] = test[k5];
-                        insertedData100_Slot2_1.push(test[k5])
-                        changeRowtoZero_minus_1(combine,array,i,i-1)
-                    }else if(array[i] == 100 && array[i+1] == 100){//slot 2 hours in 1 go
-                        //checking_plus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k5];
-                        array[j+1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100+1] = test[k5];
-                        insertedData100_Slot2_1.push(test[k5])
-                        changeRowtoZero_plus_1(combine,array,i,i-1);
-                    }else if(array[i] == 100 ){//slot 1 hours in 1 go
-                        //checking_only_1(array,test[k]);
-                        array[i] = array[j];
-                        array[j] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        changeRowtoZero_1(combine,array,i)
-                        remainderArraySlot1.push(test[k5])
-                    }
-            }
-
-            changeToZero(array);
-            changeToZero(combine);
-            }
-            k5++  
+            k2++  
         }
 
+        //slot in  3 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k3 < hms3.length){
+                checking_1(combine,array,hms3[k3])
+    
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));
+                    if(combine[j+startIndex100] == 100 && combine[j-1+startIndex100] == 100 && combine[j+1+startIndex100] == 100 && j-1 != LastIndex50 && j+1 != startIndex200 ){ // slot in 3 course at one time
+                        array[j] = -1;
+                        array[j-1] = -1;
+                        array[j+1] = -1;
+                        combine[j+startIndex100] = hms3[k3];
+                        combine[j-1+startIndex100] = hms3[k3];
+                        combine[j+1+startIndex100] = hms3[k3];
+                        c = 1
+                    }    
+                    //else if(array[j] == 100 && array[j-1] == 100){// slot in 2 course at one time
+                    else if(combine[j+startIndex100] == 100 && combine[j-1+startIndex100] == 100 && j-1 != LastIndex50){// slot in 2 course at one time
+                            
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex100] = hms3[k3];
+                            combine[j-1+startIndex100] = hms3[k3];
+                            checkDay(combine,array,j)
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                if(combine[v+startIndex100] == 100){
+                                    array[v] = -1;
+                                    combine[v+startIndex100] = hms3[k3];
+                                    b = 1
+                                }
+                            }
+                            c = 1
+                    }
+                    else if(combine[j+startIndex100] == 100 && combine[j+1+startIndex100] == 100 && j+1 != startIndex200){ // slot in 2 course at one time
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex100] = hms3[k3];
+                            combine[j+1+startIndex100] = hms3[k3];
+                            checkDay(combine,array,j)
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                if(combine[p+startIndex100] == 100 ){
+                                    array[p] = -1;
+                                    combine[p+startIndex100] = hms3[k3];
+                                    z = 1
+                                }
+                            }
+                            c = 1
+                    }
+                    else if(combine[j+startIndex100] == 100){ // slot in 1 course at one time
+                        array[j] = -1;
+                        combine[j+startIndex100] = hms3[k3];
+                        checkDay(combine,array,j)
+                            let m = 0 
+                            while(m != 1){
+                                const y = Math.floor(Math.random()*(i+1));
+                                if(combine[y+startIndex100] == 100 && combine[y-1+startIndex100] == 100 && y-1 != LastIndex50){
+                                    array[y] = -1;
+                                    array[y-1] = -1;
+                                    combine[y+startIndex100] = hms3[k3];
+                                    combine[y-1+startIndex100] = hms3[k3];
+                                    m = 1
+                                }
+                                else if(combine[y+startIndex100] == 100 && combine[y+1+startIndex100] == 100 && y+1 != startIndex200){
+                                    array[y] = -1;
+                                    array[y+1] = -1;
+                                    combine[y+startIndex100] = hms3[k3];
+                                    combine[y+1+startIndex100] = hms3[k3];
+                                    m = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k3++  
+        }
 
- //changeToZero(array) 
-
- //fullfill the slot 3
- for(let x = 0; x< array.length; x++){
-    if(k3 < remainderArraySlot1.length){                
-        //checking_only_1(array, remainderArraySlot1[k3])
-        //checkTest(AntArr100,remainderArraySlot1[k3])
-        checking_plus_1(combine,array,remainderArraySlot1[k3])
-        if(array[x] == 100 && array[x+1] ==100){
-            //changeRowtoZero_plus_1(array,remainderArraySlot1[k3])
-            array[x] = remainderArraySlot1[k3]
-            array[x+1] = remainderArraySlot1[k3]
-            combine[x+startIndex100] = remainderArraySlot1[k3]
-            combine[x+startIndex100+1] = remainderArraySlot1[k3]
-            changeRowtoZero_plus_1(combine,array,x,x+1)
-        }else{insertedData100_Slot2_2.push(remainderArraySlot1[k3])}
-     }
-     k3++   
- }
- changeToZero(array);
- changeToZero(combine);
-
- 
- for(let x = 0; x< array.length; x++){
-    if(k2 < remainderArray.length){
-        //checkTest(AntArr100,remainderArray[k2])
-        checking_plus_1(combine,array,remainderArray[k2])
-         if(array[x] == 100 && array[x+1] ==100){
-             //if(k2 < remainderArray.length){
-                //changeRowtoZero_plus_1(array,remainderArraySlot1[k2])
-                 array[x] = remainderArray[k2]
-                 array[x+1] = remainderArray[k2]
-                 combine[x+startIndex100] = remainderArray[k2]
-                 combine[x+startIndex100+1] = remainderArray[k2]
-                 changeRowtoZero_plus_1(combine,array,x,x+1)
-             }
-             try{
-                 let slot2 = remainderArray[k2][10]
-                 if(slot2 == 1){
-                     insertedData100_Slot2_1.push(remainderArray[k2])
-                 }
-                 if(slot2 == 2){
-                    insertedData100_Slot2_2.push(remainderArray[k2])
-                }
-             }catch{}
-     }
-     k2++   
- }
-  changeToZero(array)
-  changeToZero(combine)
-
-//  for(let i = 0; i < array.length; i++){
-//     if(array[i] != 100 && array[i] !=100 && array[i] != 0 && array[i] != undefined && array[i] != 1){
-//         count += 1
-//     }
-// }
-//console.log(count);
-
- if(array[-1] != undefined){
-     insertedData100_Slot2_1.push(array[-1]);
- }
+        changeToZero(array)
+        changeToZero(combine)
 
     return array;
+    
 }
 
-//var AntArrIns100 = AntAlgoInsert100(AntArr100);
 var AntArrIns100 = AntAlgoInsert100(AntArr100,AntArrCombine);
-//console.log(AntArrIns100);
 
- const slot2Equal1for100= (array,combine) => {
-     let k = 0;
-     let test2 = []
-    let totalRoom = array.length / 38
-
-     for(let x = 0; x< array.length; x++){
-            if(array[x] == 100){
-                if(k < insertedData100_Slot2_1.length){
-                    checking_only_1(combine,array,insertedData100_Slot2_1[k])
-                    array[x] = insertedData100_Slot2_1[k]
-                    combine[x+startIndex100] = insertedData100_Slot2_1[k]
-                //changeRowtoZero_1(array,x)
-                }
-                k++   
-         }
-     }
-     changeToZero(array)
-     changeToZero(combine)
-     return array;
- }
-slot2Equal1for100(AntArr100,AntArrCombine);
-//slot2Equal1for100(AntArrCombine);
-
-
- const slot2Equal2for100 = (array,combine) => {
-     let k = 0;
-    let totalRoom = array.length / 38
-
-     for(let x = 0; x< array.length; x++){
-         if(array[x] == 100 && array[x+1] ==100){
-            if(k < insertedData100_Slot2_2.length){
-                //checking_only_1(array,insertedData100_Slot2_2[k])
-                //checkTest(AntArr100,insertedData100_Slot2_2[k])
-                checking_plus_1(combine,array,insertedData100_Slot2_2[k])
-                 array[x] = insertedData100_Slot2_2[k]
-                 array[x+1] = insertedData100_Slot2_2[k]
-                 combine[x+startIndex100] = insertedData100_Slot2_2[k]
-                 combine[x+startIndex100+1] = insertedData100_Slot2_2[k]
-                 //changeRowtoZero_plus_1(array,x,x+1)
-             }
-             k++
-         }
-     }
-     changeToZero(array)
-     changeToZero(combine)
-
-     if(array[-1] != undefined){
-         insertedData100_Slot2_1.push(array[-1]);
-     }
-
-     return array;
- }
- slot2Equal2for100(AntArr100,AntArrCombine);
- //slot2Equal2for100(AntArrCombine);
 
 const checkAmountData100_2 = (array) => {
     let count = 0
@@ -1439,10 +1055,7 @@ const checkAmountData100_2 = (array) => {
     }
     return count
 }
-//var checkAmount_2 = checkAmountData100_2(AntArrIns100)
 var checkAmount_2 = checkAmountData100_2(AntArrIns100)
-//console.log(AntArrIns100)
-//console.log("Amount of data: " +checkAmount_2);
 
 const checkAmountData100_0 = (array) => {
     let count = 0
@@ -1453,11 +1066,10 @@ const checkAmountData100_0 = (array) => {
     }
     return count
 }
- //var checkAmount_0 = checkAmountData100_0(AntArr100)
- var checkAmount_0 = checkAmountData100_0(AntArr100)
-//console.log("zero counter: "+checkAmount_0);
+var checkAmount_0 = checkAmountData100_0(AntArr100)
 
-// _____________________________________________________________________________________________________________________________________________________
+// // _____________________________________________________________________________________________________________________________________________________
+
 
 const array1D200 = (data) => {
     var result = []
@@ -1469,372 +1081,224 @@ const array1D200 = (data) => {
 }
 var AntArr200 = array1D200(DataArray200);
 
-let insertedData200_Slot2_2 = []
-let insertedData200_Slot2_1= []
 
-let arrayLength200 =  DataArray200
 const AntAlgoInsert200 = (array,combine) => {
-
-    //array.length = 1064 (last index = 1063)
-    //array.length = 646 (last index = 645)
 
 
     let test = []
     let k = 0;
     let k2 =0
     let k3 =0
-    let k4=0
-    let k5 =0
-    let count = 0;
-    let b = 1
-
-    
-    let remainderArray = []
-    let remainderArraySlot1 = []
-    let totalRoom = array.length / 38
+    let hms2 = []
+    let hms3 = []
+    let hms4 = []
 
 
-    for(let x=0; x<filterData200.length;x++){
-        test.push(filterData200[x]);
-    }
+        for(let x=0; x<filterData200.length;x++){
+            if(filterData200[x][7] == 2){
+                hms2.push(filterData200[x])
+            }
+            if(filterData200[x][7] == 4){
+                hms4.push(filterData200[x])
+            }
+            if(filterData200[x][7] == 3){
+                hms3.push(filterData200[x])
+            }
+            test.push(filterData200[x]);
+        }
 
-        //for(let i = array.length-1;i>0;i--){
+        //slot in  2 hours of meeting student course
         for(let i = array.length-1;i>0;i--){
-            if(k < test.length){
-            let hourMS = test[k][7]    
-            //checkTest(AntArr200,test[k])
-            changeToZero(array);
-            changeToZero(combine);
-            if(hourMS == 2){
-                //changeToZero(array)
-                const j = Math.floor(Math.random()*(i+1));
-                // checking_minus_1(array,test[k])
-                // checking_plus_1(array,test[k])
-                checking_minus_1(combine,array,test[k])
-                checking_plus_1(combine,array,test[k])
-                //checking_only_1(array,test[k])
-                //checkTest(AntArr200,test[k])
-                if(array[i] == 100 && array[i-1] == 100){
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k];
-                        array[j-1] = test[k];
-                        combine[j+startIndex100] = test[k];
-                        combine[j+startIndex100-1] = test[k];
-                        //changeRowtoZero_minus_1(array,i,i-1)
-                        changeRowtoZero_minus_1(combine,array,i,i-1)
-                        //checking_minus_1(array,test[k])
-                 }
-                 else if(array[i] == 100 && array[i+1] == 100){
-                        //checking_plus_1(array,test[k])
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k];
-                        array[j+1] = test[k];
-                        combine[j+startIndex100] = test[k];
-                        combine[j+startIndex100+1] = test[k];
-                        //changeRowtoZero_plus_1(array,i,i+1)
-                        changeRowtoZero_plus_1(combine,i,i+1)
-                        //checking_plus_1(array,test[k])
-                }
-                else{
-                    remainderArray.push(test[k]);
-                }
-
+            if(k < hms2.length){
+                checking_1(combine,array,hms2[k])
+    
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+                    if(combine[j+startIndex200] == 100 && combine[j-1+startIndex200] == 100 && j-1 != LastIndex100){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex200] = hms2[k];
+                            combine[j-1+startIndex200] = hms2[k];
+                            c = 1
+                    }
+                    else if(combine[j+startIndex200] == 100 && combine[j+1+startIndex200] == 100 && j+1 != startIndex500){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex200] = hms2[k];
+                            combine[j+1+startIndex200] = hms2[k];
+                            c = 1
+                    }
+                }    
             }
-
-            // changeToZero(array);
-            // changeToZero(combine);
-            }
+            changeToZero(array)
+            changeToZero(combine)
             k++  
         }
 
 
+        //slot in  4 hours of meeting student course 
         for(let i = array.length-1;i>0;i--){
-            if(k4 < test.length){
-            let hourMS = test[k4][7]    
-            //checkTest(AntArr200,test[k])
-            changeToZero(array)
-            changeToZero(combine)
-            if(hourMS == 4){
-                // checking_minus_1(array,test[k]);
-                checking_minus_1(combine,array,test[k4]);
-                checking_plus_1(combine,array,test[k4])
-                //checking_only_1(array,test[k])
-                //checkTest(AntArr200,test[k])
-                const j = Math.floor(Math.random()*(i+1));
-                    if(array[i] == 100 && array[i-1] == 100 ){
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k4];
-                        array[j-1] = test[k4];
-                        combine[j+startIndex100] = test[k4];
-                        combine[j+startIndex100-1] = test[k4];
-
-                        
+            if(k2 < hms4.length){
+                checking_1(combine,array,hms4[k2])
     
-                        //const j = Math.floor(Math.random()*(i+1));
-                        changeRowtoZero_minus_1(combine,array,j,j-1);
-                        if(array[i] == 100 && array[i-1] == 100){
-                            //checking_minus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i-1] = array[j-1];
-                            array[j] = test[k4];
-                            array[j-1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100-1] = test[k4];
-                            //changeRowtoZero_minus_1(array,i,i-1)
-                            changeRowtoZero_minus_1(combine,array,j,j-1);
-                        }
-                        else if(array[i] == 100 && array[i+1] == 100){
-                            //checking_plus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i+1] = array[j+1];
-                            array[j] = test[k4];
-                            array[j+1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100+1] = test[k4];
-                            //changeRowtoZero_plus_1(array,j,j-1);
-                            changeRowtoZero_plus_1(combine,array,j,j-1);
-                        }
-                        else{
-                            remainderArraySlot1.push(test[k4]);
-                        }
-                        //count += 1
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndex200] == 100 && combine[j-1+startIndex200] == 100 && j-1 != LastIndex100){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex200] = hms4[k2];
+                            combine[j-1+startIndex200] = hms4[k2];
+                            checkDay(combine,array,j)
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                if(combine[v+startIndex200] == 100 && combine[v-1+startIndex200] == 100 && v-1 != LastIndex100){
+                                    array[v] = -1;
+                                    array[v-1] = -1;
+                                    combine[v+startIndex200] = hms4[k2];
+                                    combine[v-1+startIndex200] = hms4[k2];
+                                    b = 1
+                                }
+                                else if(combine[v+startIndex200] == 100 && combine[v+1+startIndex200] == 100 && v+1 != startIndex500){
+                                    array[v] = -1;
+                                    array[v+1] = -1;
+                                    combine[v+startIndex200] = hms4[k2];
+                                    combine[v+1+startIndex200] = hms4[k2];
+                                    b = 1
+                                }
+                            }
+                            c = 1
                     }
-                    else if(array[i] == 100 && array[i+1] == 100 ){
-                        //checking_plus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k4];
-                        array[j+1] = test[k4];
-                        combine[j+startIndex100] = test[k4];
-                        combine[j+startIndex100+1] = test[k4];
-                    
-                        changeRowtoZero_plus_1(combine,array,i,i-1);
-                        //const j = Math.floor(Math.random()*(i+1));
-                        if(array[i] == 100 && array[i-1] == 100){
-                        //checking_minus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i-1] = array[j-1];
-                            array[j] = test[k4];
-                            array[j-1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100-1] = test[k4];
-                            //changeRowtoZero_minus_1(array,i,i-1)
-                            changeRowtoZero_minus_1(combine,array,j,j-1);
-                        }
-                        else if(array[i] == 100 && array[i+1] == 100){
-                            //checking_plus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i+1] = array[j+1];
-                            array[j] = test[k4];
-                            array[j+1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100+1] = test[k4];
-                            //changeRowtoZero_plus_1(array,i,i-1);
-                            changeRowtoZero_plus_1(combine,array,j,j-1);
-                        }
-                        else{
-                            remainderArraySlot1.push(test[k4]);
-                        }
+                
+                    else if(combine[j+startIndex200] == 100 && combine[j+1+startIndex200] == 100 && j+1 != startIndex500){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex200] = hms4[k2];
+                            combine[j+1+startIndex200] = hms4[k2];
+                            checkDay(combine,array,j)
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                if(combine[p+startIndex200] == 100 && combine[p-1+startIndex200] == 100 && p-1 != LastIndex100){
+                                    array[p] = -1;
+                                    array[p-1] = -1;
+                                    combine[p+startIndex200] = hms4[k2];
+                                    combine[p-1+startIndex200] = hms4[k2];
+                                    z = 1
+                                }
+                                else if(combine[p+startIndex200] == 100 && combine[p+1+startIndex200] == 100 && p+1 != startIndex500){
+                                    array[p] = -1;
+                                    array[p+1] = -1;
+                                    combine[p+startIndex200] = hms4[k2];
+                                    combine[p+1+startIndex200] = hms4[k2];
+                                    z = 1
+                                }
+                            }
+                            c = 1
                     }
-                    else{
-                        remainderArray.push(test[k4]);
-                    }
-
+                }    
             }
-
-            changeToZero(array);
-            changeToZero(combine);
-            }
-            k4++  
-        }
-
-        for(let i = array.length-1;i>0;i--){
-            if(k5 < test.length){
-            let hourMS = test[k5][7]    
-            //checkTest(AntArr200,test[k])
             changeToZero(array)
             changeToZero(combine)
-            if(hourMS == 3){
-                const j = Math.floor(Math.random()*(i+1)); 
-
-                    checking_3(combine,array,test[k5]);
-                    //checking_only_1(array,test[k])
-                    //checkTest(AntArr200,test[k])
-                    if( array[i] == 100 && array[i-1] == 100 && array[i+1]==100){// slot 3 hours in 1 go
-                        //checking_3(array,test[k]);
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k5];
-                        array[j-1] = test[k5];
-                        array[j+1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100-1] = test[k5];
-                        combine[j+startIndex100+1] = test[k5];
-                        changeRowtoZero_3_(combine,array,i,i-1,i+1)
-                    }else if(array[i] == 100 && array[i-1] == 100){//slot 2 hours in 1 go
-                        //checking_minus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k5];
-                        array[j-1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100-1] = test[k5];
-                        insertedData200_Slot2_1.push(test[k5])
-                        changeRowtoZero_minus_1(combine,array,i,i-1)
-                    }else if(array[i] == 100 && array[i+1] == 100){//slot 2 hours in 1 go
-                        //checking_plus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k5];
-                        array[j+1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100+1] = test[k5];
-                        insertedData200_Slot2_1.push(test[k5])
-                        changeRowtoZero_plus_1(combine,array,i,i-1);
-                    }else if(array[i] == 100 ){//slot 1 hours in 1 go
-                        //checking_only_1(array,test[k]);
-                        array[i] = array[j];
-                        array[j] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        changeRowtoZero_1(combine,array,i)
-                        remainderArraySlot1.push(test[k5])
-                    }
-            }
-
-            changeToZero(array);
-            changeToZero(combine);
-            }
-            k5++  
+            k2++  
         }
 
+        //slot in  3 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k3 < hms3.length){
+                checking_1(combine,array,hms3[k3])
+    
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));
+                    if(combine[j+startIndex200] == 100 && combine[j-1+startIndex200] == 100 && combine[j+1+startIndex200] == 100 && j-1 != LastIndex100 && j+1 != startIndex500 ){ // slot in 3 course at one time
+                        
+                        array[j] = -1;
+                        array[j-1] = -1;
+                        array[j+1] = -1;
+                        combine[j+startIndex200] = hms3[k3];
+                        combine[j-1+startIndex200] = hms3[k3];
+                        combine[j+1+startIndex200] = hms3[k3];
+                        c = 1
+                    }    
+                    else if(combine[j+startIndex200] == 100 && combine[j-1+startIndex200] == 100 && j-1 != LastIndex100){// slot in 2 course at one time
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex200] = hms3[k3];
+                            combine[j-1+startIndex200] = hms3[k3];
+                            checkDay(combine,array,j)
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                if(combine[v+startIndex200] == 100){
+                                    array[v] = -1;
+                                    combine[v+startIndex200] = hms3[k3];
+                                    b = 1
+                                }
+                            }
+                            c = 1
+                    }
+                 // slot in 2 course at one time
+                    else if(combine[j+startIndex200] == 100 && combine[j+1+startIndex200] == 100 && j+1 != startIndex500){ // slot in 2 course at one time
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex200] = hms3[k3];
+                            combine[j+1+startIndex200] = hms3[k3];
+                            checkDay(combine,array,j)
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                if(combine[p+startIndex200] == 100 ){
+                                    array[p] = -1;
+                                    combine[p+startIndex200] = hms3[k3];
+                                    z = 1
+                                }
+                            }
+                            c = 1
+                    }
+                    else if(combine[j+startIndex200] == 100){ // slot in 1 course at one time
+                        array[j] = -1;
+                        combine[j+startIndex200] = hms3[k3];
+                        checkDay(combine,array,j)
+                            let m = 0 
+                            while(m != 1){
+                                const y = Math.floor(Math.random()*(i+1));
+                                if(combine[y+startIndex200] == 100 && combine[y-1+startIndex200] == 100 && y-1 != LastIndex100){
+                                    array[y] = -1;
+                                    array[y-1] = -1;
+                                    combine[y+startIndex200] = hms3[k3];
+                                    combine[y-1+startIndex200] = hms3[k3];
+                                    m = 1
+                                }
+                                else if(combine[y+startIndex200] == 100 && combine[y+1+startIndex200] == 100 && y+1 != startIndex500){
+                                    array[y] = -1;
+                                    array[y+1] = -1;
+                                    combine[y+startIndex200] = hms3[k3];
+                                    combine[y+1+startIndex200] = hms3[k3];
+                                    m = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k3++  
+        }
 
- //changeToZero(array) 
-
- //fullfill the slot 3
- for(let x = 0; x< array.length; x++){
-    if(k3 < remainderArraySlot1.length){                
-        //checking_only_1(array, remainderArraySlot1[k3])
-        //checkTest(AntArr200,remainderArraySlot1[k3])
-        checking_plus_1(combine,array,remainderArraySlot1[k3])
-        if(array[x] == 100 && array[x+1] ==100){
-            //changeRowtoZero_plus_1(array,remainderArraySlot1[k3])
-            array[x] = remainderArraySlot1[k3]
-            array[x+1] = remainderArraySlot1[k3]
-            combine[x+startIndex200] = remainderArraySlot1[k3]
-            combine[x+startIndex200+1] = remainderArraySlot1[k3]
-            changeRowtoZero_plus_1(combine,array,x,x+1)
-        }else{insertedData200_Slot2_2.push(remainderArraySlot1[k3])}
-     }
-     k3++   
- }
- changeToZero(array);
- changeToZero(combine);
-
- 
- for(let x = 0; x< array.length; x++){
-    if(k2 < remainderArray.length){
-        //checkTest(AntArr200,remainderArray[k2])
-        checking_plus_1(combine,array,remainderArray[k2])
-         if(array[x] == 100 && array[x+1] ==100){
-             //if(k2 < remainderArray.length){
-                //changeRowtoZero_plus_1(array,remainderArraySlot1[k2])
-                 array[x] = remainderArray[k2]
-                 array[x+1] = remainderArray[k2]
-                 combine[x+startIndex200] = remainderArray[k2]
-                 combine[x+startIndex200+1] = remainderArray[k2]
-                 changeRowtoZero_plus_1(combine,array,x,x+1)
-             }
-             try{
-                 let slot2 = remainderArray[k2][10]
-                 if(slot2 == 1){
-                     insertedData200_Slot2_1.push(remainderArray[k2])
-                 }
-                 if(slot2 == 2){
-                    insertedData200_Slot2_2.push(remainderArray[k2])
-                }
-             }catch{}
-     }
-     k2++   
- }
-  changeToZero(array)
-  changeToZero(combine)
-
-//  for(let i = 0; i < array.length; i++){
-//     if(array[i] != 100 && array[i] !=200 && array[i] != 0 && array[i] != undefined && array[i] != 1){
-//         count += 1
-//     }
-// }
-//console.log(count);
-
- if(array[-1] != undefined){
-     insertedData200_Slot2_1.push(array[-1]);
- }
+        changeToZero(array)
+        changeToZero(combine)
 
     return array;
+    
 }
 
-//var AntArrIns200 = AntAlgoInsert200(AntArr200);
 var AntArrIns200 = AntAlgoInsert200(AntArr200,AntArrCombine);
-//console.log(AntArrIns200);
 
- const slot2Equal1for200= (array,combine) => {
-     let k = 0;
-     let test2 = []
-    let totalRoom = array.length / 38
-
-     for(let x = 0; x< array.length; x++){
-            if(array[x] == 100){
-                if(k < insertedData200_Slot2_1.length){
-                    checking_only_1(combine,array,insertedData200_Slot2_1[k])
-                    array[x] = insertedData200_Slot2_1[k]
-                    combine[x+startIndex200] = insertedData200_Slot2_1[k]
-                //changeRowtoZero_1(array,x)
-                }
-                k++   
-         }
-     }
-     changeToZero(array)
-     changeToZero(combine)
-     return array;
- }
-slot2Equal1for200(AntArr200,AntArrCombine);
-//slot2Equal1for200(AntArrCombine);
-
-
- const slot2Equal2for200 = (array,combine) => {
-     let k = 0;
-    let totalRoom = array.length / 38
-
-     for(let x = 0; x< array.length; x++){
-         if(array[x] == 100 && array[x+1] ==100){
-            if(k < insertedData200_Slot2_2.length){
-                //checking_only_1(array,insertedData200_Slot2_2[k])
-                //checkTest(AntArr200,insertedData200_Slot2_2[k])
-                checking_plus_1(combine,array,insertedData200_Slot2_2[k])
-                 array[x] = insertedData200_Slot2_2[k]
-                 array[x+1] = insertedData200_Slot2_2[k]
-                 combine[x+startIndex200] = insertedData200_Slot2_2[k]
-                 combine[x+startIndex200+1] = insertedData200_Slot2_2[k]
-                 //changeRowtoZero_plus_1(array,x,x+1)
-             }
-             k++
-         }
-     }
-     changeToZero(array)
-     changeToZero(combine)
-
-     if(array[-1] != undefined){
-         insertedData200_Slot2_1.push(array[-1]);
-     }
-
-     return array;
- }
- slot2Equal2for200(AntArr200,AntArrCombine);
- //slot2Equal2for200(AntArrCombine);
 
 const checkAmountData200_2 = (array) => {
     let count = 0
@@ -1845,10 +1309,7 @@ const checkAmountData200_2 = (array) => {
     }
     return count
 }
-//var checkAmount_2 = checkAmountData200_2(AntArrIns200)
 var checkAmount_2 = checkAmountData200_2(AntArrIns200)
-// console.log(AntArrIns200)
-// console.log("Amount of data: " +checkAmount_2);
 
 const checkAmountData200_0 = (array) => {
     let count = 0
@@ -1859,13 +1320,10 @@ const checkAmountData200_0 = (array) => {
     }
     return count
 }
- //var checkAmount_0 = checkAmountData200_0(AntArr200)
- var checkAmount_0 = checkAmountData200_0(AntArr200)
-//console.log("zero counter: "+checkAmount_0);
+var checkAmount_0 = checkAmountData200_0(AntArr200)
 
 
-
-//________________________________________________________________________________________________________________________________________________________
+// //________________________________________________________________________________________________________________________________________________________
 
 
 const array1D500 = (data) => {
@@ -1878,372 +1336,226 @@ const array1D500 = (data) => {
 }
 var AntArr500 = array1D500(DataArray500);
 
-let insertedData500_Slot2_2 = []
-let insertedData500_Slot2_1= []
 
-let arrayLength500 =  DataArray500
 const AntAlgoInsert500 = (array,combine) => {
-
-    //array.length = 1064 (last index = 1063)
-    //array.length = 646 (last index = 645)
 
 
     let test = []
     let k = 0;
     let k2 =0
     let k3 =0
-    let k4=0
-    let k5 =0
-    let count = 0;
-    let b = 1
-
-    
-    let remainderArray = []
-    let remainderArraySlot1 = []
-    let totalRoom = array.length / 38
+    let hms2 = []
+    let hms3 = []
+    let hms4 = []
 
 
-    for(let x=0; x<filterData500.length;x++){
-        test.push(filterData500[x]);
-    }
+        for(let x=0; x<filterData500.length;x++){
+            if(filterData500[x][7] == 2){
+                hms2.push(filterData500[x])
+            }
+            if(filterData500[x][7] == 4){
+                hms4.push(filterData500[x])
+            }
+            if(filterData500[x][7] == 3){
+                hms3.push(filterData500[x])
+            }
+            test.push(filterData500[x]);
+        }
 
-        //for(let i = array.length-1;i>0;i--){
+        //slot in  2 hours of meeting student course
         for(let i = array.length-1;i>0;i--){
-            if(k < test.length){
-            let hourMS = test[k][7]    
-            //checkTest(AntArr500,test[k])
-            changeToZero(array);
-            changeToZero(combine);
-            if(hourMS == 2){
-                //changeToZero(array)
-                const j = Math.floor(Math.random()*(i+1));
-                // checking_minus_1(array,test[k])
-                // checking_plus_1(array,test[k])
-                checking_minus_1(combine,array,test[k])
-                checking_plus_1(combine,array,test[k])
-                //checking_only_1(array,test[k])
-                //checkTest(AntArr500,test[k])
-                if(array[i] == 100 && array[i-1] == 100){
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k];
-                        array[j-1] = test[k];
-                        combine[j+startIndex100] = test[k];
-                        combine[j+startIndex100-1] = test[k];
-                        //changeRowtoZero_minus_1(array,i,i-1)
-                        changeRowtoZero_minus_1(combine,array,i,i-1)
-                        //checking_minus_1(array,test[k])
-                 }
-                 else if(array[i] == 100 && array[i+1] == 100){
-                        //checking_plus_1(array,test[k])
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k];
-                        array[j+1] = test[k];
-                        combine[j+startIndex100] = test[k];
-                        combine[j+startIndex100+1] = test[k];
-                        //changeRowtoZero_plus_1(array,i,i+1)
-                        changeRowtoZero_plus_1(combine,i,i+1)
-                        //checking_plus_1(array,test[k])
-                }
-                else{
-                    remainderArray.push(test[k]);
-                }
-
+            if(k < hms2.length){
+                checking_1(combine,array,hms2[k])
+    
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndex500] == 100 && combine[j-1+startIndex500] == 100 && j-1 != LastIndex200){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex500] = hms2[k];
+                            combine[j-1+startIndex500] = hms2[k];
+                            c = 1
+                    }
+                
+                    else if(combine[j+startIndex500] == 100 && combine[j+1+startIndex500] == 100){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex500] = hms2[k];
+                            combine[j+1+startIndex500] = hms2[k];
+                            c = 1
+                    }
+                }    
             }
-
-            // changeToZero(array);
-            // changeToZero(combine);
-            }
+            changeToZero(array)
+            changeToZero(combine)
             k++  
         }
 
 
+        //slot in  4 hours of meeting student course 
         for(let i = array.length-1;i>0;i--){
-            if(k4 < test.length){
-            let hourMS = test[k4][7]    
-            //checkTest(AntArr500,test[k])
-            changeToZero(array)
-            changeToZero(combine)
-            if(hourMS == 4){
-                // checking_minus_1(array,test[k]);
-                checking_minus_1(combine,array,test[k4]);
-                checking_plus_1(combine,array,test[k4])
-                //checking_only_1(array,test[k])
-                //checkTest(AntArr500,test[k])
-                const j = Math.floor(Math.random()*(i+1));
-                    if(array[i] == 100 && array[i-1] == 100 ){
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k4];
-                        array[j-1] = test[k4];
-                        combine[j+startIndex100] = test[k4];
-                        combine[j+startIndex100-1] = test[k4];
-
-                        
+            if(k2 < hms4.length){
+            
+                checking_1(combine,array,hms4[k2])
     
-                        //const j = Math.floor(Math.random()*(i+1));
-                        changeRowtoZero_minus_1(combine,array,j,j-1);
-                        if(array[i] == 100 && array[i-1] == 100){
-                            //checking_minus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i-1] = array[j-1];
-                            array[j] = test[k4];
-                            array[j-1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100-1] = test[k4];
-                            //changeRowtoZero_minus_1(array,i,i-1)
-                            changeRowtoZero_minus_1(combine,array,j,j-1);
-                        }
-                        else if(array[i] == 100 && array[i+1] == 100){
-                            //checking_plus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i+1] = array[j+1];
-                            array[j] = test[k4];
-                            array[j+1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100+1] = test[k4];
-                            //changeRowtoZero_plus_1(array,j,j-1);
-                            changeRowtoZero_plus_1(combine,array,j,j-1);
-                        }
-                        else{
-                            remainderArraySlot1.push(test[k4]);
-                        }
-                        //count += 1
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndex500] == 100 && combine[j-1+startIndex500] == 100 && j-1 != LastIndex200){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex500] = hms4[k2];
+                            combine[j-1+startIndex500] = hms4[k2];
+                            checkDay(combine,array,j)
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                if(combine[v+startIndex500] == 100 && combine[v-1+startIndex500] == 100 && v-1 != LastIndex200){
+                                    array[v] = -1;
+                                    array[v-1] = -1;
+                                    combine[v+startIndex500] = hms4[k2];
+                                    combine[v-1+startIndex500] = hms4[k2];
+                                    b = 1
+                                }
+                                else if(combine[v+startIndex500] == 100 && combine[v+1+startIndex500] == 100){
+                                    array[v] = -1;
+                                    array[v+1] = -1;
+                                    combine[v+startIndex500] = hms4[k2];
+                                    combine[v+1+startIndex500] = hms4[k2];
+                                    b = 1
+                                }
+                            }
+                            c = 1
                     }
-                    else if(array[i] == 100 && array[i+1] == 100 ){
-                        //checking_plus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k4];
-                        array[j+1] = test[k4];
-                        combine[j+startIndex100] = test[k4];
-                        combine[j+startIndex100+1] = test[k4];
-                    
-                        changeRowtoZero_plus_1(combine,array,i,i-1);
-                        //const j = Math.floor(Math.random()*(i+1));
-                        if(array[i] == 100 && array[i-1] == 100){
-                        //checking_minus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i-1] = array[j-1];
-                            array[j] = test[k4];
-                            array[j-1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100-1] = test[k4];
-                            //changeRowtoZero_minus_1(array,i,i-1)
-                            changeRowtoZero_minus_1(combine,array,j,j-1);
-                        }
-                        else if(array[i] == 100 && array[i+1] == 100){
-                            //checking_plus_1(array,test[k]);
-                            array[i] = array[j];
-                            array[i+1] = array[j+1];
-                            array[j] = test[k4];
-                            array[j+1] = test[k4];
-                            combine[j+startIndex100] = test[k4];
-                            combine[j+startIndex100+1] = test[k4];
-                            //changeRowtoZero_plus_1(array,i,i-1);
-                            changeRowtoZero_plus_1(combine,array,j,j-1);
-                        }
-                        else{
-                            remainderArraySlot1.push(test[k4]);
-                        }
+                
+                    else if(combine[j+startIndex500] == 100 && combine[j+1+startIndex500] == 100){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex500] = hms4[k2];
+                            combine[j+1+startIndex500] = hms4[k2];
+                            checkDay(combine,array,j)
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                if(combine[p+startIndex500] == 100 && combine[p-1+startIndex500] == 100 && p-1 != LastIndex200){
+                                    array[p] = -1;
+                                    array[p-1] = -1;
+                                    combine[p+startIndex500] = hms4[k2];
+                                    combine[p-1+startIndex500] = hms4[k2];
+                                    z = 1
+                                }
+                                else if(combine[p+startIndex500] == 100 && combine[p+1+startIndex500] == 100 ){
+                                    array[p] = -1;
+                                    array[p+1] = -1;
+                                    combine[p+startIndex500] = hms4[k2];
+                                    combine[p+1+startIndex500] = hms4[k2];
+                                    z = 1
+                                }
+                            }
+                            c = 1
                     }
-                    else{
-                        remainderArray.push(test[k4]);
-                    }
-
+                }    
             }
-
-            changeToZero(array);
-            changeToZero(combine);
-            }
-            k4++  
-        }
-
-        for(let i = array.length-1;i>0;i--){
-            if(k5 < test.length){
-            let hourMS = test[k5][7]    
-            //checkTest(AntArr500,test[k])
             changeToZero(array)
             changeToZero(combine)
-            if(hourMS == 3){
-                const j = Math.floor(Math.random()*(i+1)); 
-
-                    checking_3(combine,array,test[k5]);
-                    //checking_only_1(array,test[k])
-                    //checkTest(AntArr500,test[k])
-                    if( array[i] == 100 && array[i-1] == 100 && array[i+1]==100){// slot 3 hours in 1 go
-                        //checking_3(array,test[k]);
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k5];
-                        array[j-1] = test[k5];
-                        array[j+1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100-1] = test[k5];
-                        combine[j+startIndex100+1] = test[k5];
-                        changeRowtoZero_3_(combine,array,i,i-1,i+1)
-                    }else if(array[i] == 100 && array[i-1] == 100){//slot 2 hours in 1 go
-                        //checking_minus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i-1] = array[j-1];
-                        array[j] = test[k5];
-                        array[j-1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100-1] = test[k5];
-                        insertedData500_Slot2_1.push(test[k5])
-                        changeRowtoZero_minus_1(combine,array,i,i-1)
-                    }else if(array[i] == 100 && array[i+1] == 100){//slot 2 hours in 1 go
-                        //checking_plus_1(array,test[k]);
-                        array[i] = array[j];
-                        array[i+1] = array[j+1];
-                        array[j] = test[k5];
-                        array[j+1] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        combine[j+startIndex100+1] = test[k5];
-                        insertedData500_Slot2_1.push(test[k5])
-                        changeRowtoZero_plus_1(combine,array,i,i-1);
-                    }else if(array[i] == 100 ){//slot 1 hours in 1 go
-                        //checking_only_1(array,test[k]);
-                        array[i] = array[j];
-                        array[j] = test[k5];
-                        combine[j+startIndex100] = test[k5];
-                        changeRowtoZero_1(combine,array,i)
-                        remainderArraySlot1.push(test[k5])
-                    }
-            }
-
-            changeToZero(array);
-            changeToZero(combine);
-            }
-            k5++  
+            k2++  
         }
 
+        //slot in  3 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k3 < hms3.length){
+                checking_1(combine,array,hms3[k3])
+    
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));
+                    if(combine[j+startIndex500] == 100 && combine[j-1+startIndex500] == 100 && combine[j+1+startIndex500] == 100 && j-1 != LastIndex200 ){ // slot in 3 course at one time
+                        array[j] = -1;
+                        array[j-1] = -1;
+                        array[j+1] = -1;
+                        combine[j+startIndex500] = hms3[k3];
+                        combine[j-1+startIndex500] = hms3[k3];
+                        combine[j+1+startIndex500] = hms3[k3];
+                        c = 1
+                    }    
+                    else if(combine[j+startIndex500] == 100 && combine[j-1+startIndex500] == 100 && j-1 != LastIndex200){// slot in 2 course at one time
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndex500] = hms3[k3];
+                            combine[j-1+startIndex500] = hms3[k3];
+                            checkDay(combine,array,j)
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                if(combine[v+startIndex500] == 100){
+                                    array[v] = -1;
+                                    combine[v+startIndex500] = hms3[k3];
+                                    b = 1
+                                }
+                            }
+                            c = 1
+                    }
+                 // slot in 2 course at one time
+                    else if(combine[j+startIndex500] == 100 && combine[j+1+startIndex500] == 100){ // slot in 2 course at one time
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndex500] = hms3[k3];
+                            combine[j+1+startIndex500] = hms3[k3];
+                            checkDay(combine,array,j)
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                if(combine[p+startIndex500] == 100 ){
+                                    array[p] = -1;
+                                    combine[p+startIndex500] = hms3[k3];
+                                    z = 1
+                                }
+                            }
+                            c = 1
+                    }
+                    else if(combine[j+startIndex500] == 100){ // slot in 1 course at one time
+                        array[j] = -1;
+                        combine[j+startIndex500] = hms3[k3];
+                        checkDay(combine,array,j)
+                            let m = 0 
+                            while(m != 1){
+                                const y = Math.floor(Math.random()*(i+1));
+                                if(combine[y+startIndex500] == 100 && combine[y-1+startIndex500] == 100 && y-1 != LastIndex200){
+                                    array[y] = -1;
+                                    array[y-1] = -1;
+                                    combine[y+startIndex500] = hms3[k3];
+                                    combine[y-1+startIndex500] = hms3[k3];
+                                    m = 1
+                                }
+                                else if(combine[y+startIndex500] == 100 && combine[y+1+startIndex500] == 100){
+                                    array[y] = -1;
+                                    array[y+1] = -1;
+                                    combine[y+startIndex500] = hms3[k3];
+                                    combine[y+1+startIndex500] = hms3[k3];
+                                    m = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k3++  
+        }
 
- //changeToZero(array) 
-
- //fullfill the slot 3
- for(let x = 0; x< array.length; x++){
-    if(k3 < remainderArraySlot1.length){                
-        //checking_only_1(array, remainderArraySlot1[k3])
-        //checkTest(AntArr500,remainderArraySlot1[k3])
-        checking_plus_1(combine,array,remainderArraySlot1[k3])
-        if(array[x] == 100 && array[x+1] ==100){
-            //changeRowtoZero_plus_1(array,remainderArraySlot1[k3])
-            array[x] = remainderArraySlot1[k3]
-            array[x+1] = remainderArraySlot1[k3]
-            combine[x+startIndex500] = remainderArraySlot1[k3]
-            combine[x+startIndex500+1] = remainderArraySlot1[k3]
-            changeRowtoZero_plus_1(combine,array,x,x+1)
-        }else{insertedData500_Slot2_2.push(remainderArraySlot1[k3])}
-     }
-     k3++   
- }
- changeToZero(array);
- changeToZero(combine);
-
- 
- for(let x = 0; x< array.length; x++){
-    if(k2 < remainderArray.length){
-        //checkTest(AntArr500,remainderArray[k2])
-        checking_plus_1(combine,array,remainderArray[k2])
-         if(array[x] == 100 && array[x+1] ==100){
-             //if(k2 < remainderArray.length){
-                //changeRowtoZero_plus_1(array,remainderArraySlot1[k2])
-                 array[x] = remainderArray[k2]
-                 array[x+1] = remainderArray[k2]
-                 combine[x+startIndex500] = remainderArray[k2]
-                 combine[x+startIndex500+1] = remainderArray[k2]
-                 changeRowtoZero_plus_1(combine,array,x,x+1)
-             }
-             try{
-                 let slot2 = remainderArray[k2][10]
-                 if(slot2 == 1){
-                     insertedData500_Slot2_1.push(remainderArray[k2])
-                 }
-                 if(slot2 == 2){
-                    insertedData500_Slot2_2.push(remainderArray[k2])
-                }
-             }catch{}
-     }
-     k2++   
- }
-  changeToZero(array)
-  changeToZero(combine)
-
-//  for(let i = 0; i < array.length; i++){
-//     if(array[i] != 100 && array[i] !=500 && array[i] != 0 && array[i] != undefined && array[i] != 1){
-//         count += 1
-//     }
-// }
-//console.log(count);
-
- if(array[-1] != undefined){
-     insertedData500_Slot2_1.push(array[-1]);
- }
+        changeToZero(array)
+        changeToZero(combine)
 
     return array;
+    
 }
 
-//var AntArrIns500 = AntAlgoInsert500(AntArr500);
 var AntArrIns500 = AntAlgoInsert500(AntArr500,AntArrCombine);
-//console.log(AntArrIns500);
 
- const slot2Equal1for500= (array,combine) => {
-     let k = 0;
-     let test2 = []
-    let totalRoom = array.length / 38
-
-     for(let x = 0; x< array.length; x++){
-            if(array[x] == 100){
-                if(k < insertedData500_Slot2_1.length){
-                    checking_only_1(combine,array,insertedData500_Slot2_1[k])
-                    array[x] = insertedData500_Slot2_1[k]
-                    combine[x+startIndex500] = insertedData500_Slot2_1[k]
-                //changeRowtoZero_1(array,x)
-                }
-                k++   
-         }
-     }
-     changeToZero(array)
-     changeToZero(combine)
-     return array;
- }
-slot2Equal1for500(AntArr500,AntArrCombine);
-//slot2Equal1for500(AntArrCombine);
-
-
- const slot2Equal2for500 = (array,combine) => {
-     let k = 0;
-    let totalRoom = array.length / 38
-
-     for(let x = 0; x< array.length; x++){
-         if(array[x] == 100 && array[x+1] ==100){
-            if(k < insertedData500_Slot2_2.length){
-                //checking_only_1(array,insertedData500_Slot2_2[k])
-                //checkTest(AntArr500,insertedData500_Slot2_2[k])
-                checking_plus_1(combine,array,insertedData500_Slot2_2[k])
-                 array[x] = insertedData500_Slot2_2[k]
-                 array[x+1] = insertedData500_Slot2_2[k]
-                 combine[x+startIndex500] = insertedData500_Slot2_2[k]
-                 combine[x+startIndex500+1] = insertedData500_Slot2_2[k]
-                 //changeRowtoZero_plus_1(array,x,x+1)
-             }
-             k++
-         }
-     }
-     changeToZero(array)
-     changeToZero(combine)
-
-     if(array[-1] != undefined){
-         insertedData500_Slot2_1.push(array[-1]);
-     }
-
-     return array;
- }
- slot2Equal2for500(AntArr500,AntArrCombine);
- //slot2Equal2for500(AntArrCombine);
 
 const checkAmountData500_2 = (array) => {
     let count = 0
@@ -2254,10 +1566,7 @@ const checkAmountData500_2 = (array) => {
     }
     return count
 }
-//var checkAmount_2 = checkAmountData500_2(AntArrIns500)
 var checkAmount_2 = checkAmountData500_2(AntArrIns500)
-// console.log(AntArrIns500)
-// console.log("Amount of data: " +checkAmount_2);
 
 const checkAmountData500_0 = (array) => {
     let count = 0
@@ -2268,28 +1577,202 @@ const checkAmountData500_0 = (array) => {
     }
     return count
 }
- //var checkAmount_0 = checkAmountData500_0(AntArr500)
- var checkAmount_0 = checkAmountData500_0(AntArr500)
-//console.log("zero counter: "+checkAmount_0);
+var checkAmount_0 = checkAmountData500_0(AntArr500)
 
 
 //______________________________________________________________________________________________________________________________________________
+//Elective Courses
+
+const array1DElective50 = (data) => {
+    var result = []
+
+    for(let i = 0; i< data; i++){
+        result[i]= 100;
+    }
+    return result;
+}
+var AntArrElective50 = array1DElective50(DataArrayElective50);
+
+const AntAlgoInsertElective50 = (array,combine) => {
 
 
-const checkAmountDataCombine_2 = (array) => {
+    let test = []
+    let k = 0;
+    let k2 =0
+    let k3 =0
+    let hms2 = []
+    let hms3 = []
+    let hms4 = []
+
+
+        for(let x=0; x<filterDataElective50.length;x++){
+            if(filterDataElective50[x][7] == 2){
+                hms2.push(filterDataElective50[x])
+            }
+            if(filterDataElective50[x][7] == 4){
+                hms4.push(filterDataElective50[x])
+            }
+            if(filterDataElective50[x][7] == 3){
+                hms3.push(filterDataElective50[x])
+            }
+            test.push(filterDataElective50[x]);
+        }
+
+        //slot in  2 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k < hms2.length){
+                checking_1_Elective(combine,array,hms2[k])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j] == 100 && combine[j-1] == 100 && j-1 != -1){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j] = hms2[k];
+                            combine[j-1] = hms2[k];
+                            c = 1
+                    }
+                
+                    else if(combine[j] == 100 && combine[j+1] == 100 && j+1 != startIndexElective100){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j] = hms2[k];
+                            combine[j+1] = hms2[k];
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k++  
+        }
+
+
+        //slot in  4 hours of meeting student course 
+        for(let i = array.length-1;i>0;i--){
+            if(k2 < hms4.length){
+            
+                checking_1_Elective(combine,array,hms4[k2])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j] == 100 && combine[j-1] == 100 && j-1 != -1){
+                            
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j] = hms4[k2];
+                            combine[j-1] = hms4[k2];
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                
+                                if(combine[v] == 100 && combine[v-1] == 100 && v-1 != -1){
+                                    
+                                    array[v] = -1;
+                                    array[v-1] = -1;
+                                    combine[v] = hms4[k2];
+                                    combine[v-1] = hms4[k2];
+                                    b = 1
+                                }
+                                
+                                else if(combine[v] == 100 && combine[v+1] == 100 && v+1 != startIndexElective100){
+                                    
+                                    array[v] = -1;
+                                    array[v+1] = -1;
+                                    combine[v] = hms4[k2];
+                                    combine[v+1] = hms4[k2];
+                                    b = 1
+                                }
+                            }
+                            c = 1
+                    }
+                
+                    else if(combine[j] == 100 && combine[j+1] == 100 && j+1 != startIndexElective100){
+                            
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j] = hms4[k2];
+                            combine[j+1] = hms4[k2];
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                
+                                if(combine[p] == 100 && combine[p-1] == 100 && p-1 != -1){
+                                    
+                                    array[p] = -1;
+                                    array[p-1] = -1;
+                                    combine[p] = hms4[k2];
+                                    combine[p-1] = hms4[k2];
+                                    z = 1
+                                }
+                                
+                                else if(combine[p] == 100 && combine[p+1] == 100 && p+1 != startIndexElective100){
+                                    
+                                    array[p] = -1;
+                                    array[p+1] = -1;
+                                    combine[p] = hms4[k2];
+                                    combine[p+1] = hms4[k2];
+                                    z = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k2++  
+        }
+
+        //slot in  3 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k3 < hms3.length){
+            
+                checking_1_Elective(combine,array,hms3[k3])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));
+                    
+                    
+                    if(combine[j] == 100 && combine[j-1] == 100 && combine[j+1] == 100 && j-1 != -1 && j+1 != startIndexElective100 ){ // slot in 3 course at one time
+                        
+                        array[j] = -1;
+                        array[j-1] = -1;
+                        array[j+1] = -1;
+                        combine[j] = hms3[k3];
+                        combine[j-1] = hms3[k3];
+                        combine[j+1] = hms3[k3];
+                        c = 1
+                    }    
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k3++  
+        }
+
+        changeToZero(array)
+        changeToZero(combine)
+
+    return array;
+    
+}
+var AntArrInsElective50 = AntAlgoInsertElective50(AntArrElective50,AntArrCombineElective);
+
+const checkAmountDataElective50_2 = (array) => {
     let count = 0
     for(let i = 0; i < array.length; i++){
-            if(array[i] != 100 && array[i] !=100 && array[i] != 0 && array[i] != undefined && array[i] != 1){
+            if(array[i] != 100 && array[i] !=50 && array[i] != 0 && array[i] != undefined && array[i] != 1){
                 count += 1
             }
     }
     return count
 }
-var checkAmount_combine = checkAmountDataCombine_2(AntArrCombine)
-// console.log(AntArrCombine)
-// console.log("Amount of data: " +checkAmount_combine);
+var checkAmount_2 = checkAmountDataElective50_2(AntArrInsElective50)
 
-const checkAmountDataCombine = (array) => {
+const checkAmountDataElective50_0 = (array) => {
     let count = 0
     for(let i = 0; i < array.length; i++){
             if( array[i] == 0 ){
@@ -2298,19 +1781,712 @@ const checkAmountDataCombine = (array) => {
     }
     return count
 }
- //var checkAmount_0 = checkAmountData100_0(AntArr100)
- var checkAmount_combineData = checkAmountDataCombine(AntArrCombine)
-//console.log("zero counter: "+checkAmount_combineData);
+var checkAmount_0 = checkAmountDataElective50_0(AntArrElective50)
+
+
+//___________________________________________________________________________________________________________________________________
+
+//___________________________________________________________________________________________________________________________________
+
+const array1DElective100 = (data) => {
+    var result = []
+
+    for(let i = 0; i< data; i++){
+        result[i]= 100;
+    }
+    return result;
+}
+var AntArrElective100 = array1DElective100(DataArrayElective100);
+
+
+const AntAlgoInsertElective100 = (array,combine) => {
+
+
+    let test = []
+    let k = 0;
+    let k2 =0
+    let k3 =0
+    let hms2 = []
+    let hms3 = []
+    let hms4 = []
+
+
+        for(let x=0; x<filterDataElective100.length;x++){
+            if(filterDataElective100[x][7] == 2){
+                hms2.push(filterDataElective100[x])
+            }
+            if(filterDataElective100[x][7] == 4){
+                hms4.push(filterDataElective100[x])
+            }
+            if(filterDataElective100[x][7] == 3){
+                hms3.push(filterDataElective100[x])
+            }
+            test.push(filterDataElective100[x]);
+        }
+
+        //slot in  2 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k < hms2.length){
+                checking_1_Elective(combine,array,hms2[k])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndexElective100] == 100 && combine[j-1+startIndexElective100] == 100 && j-1 != LastIndexElective50){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndexElective100] = hms2[k];
+                            combine[j-1+startIndexElective100] = hms2[k];
+                            c = 1
+                    }
+                
+                    else if(combine[j+startIndexElective100] == 100 && combine[j+1+startIndexElective100] == 100 && j+1 != startIndexElective200){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndexElective100] = hms2[k];
+                            combine[j+1+startIndexElective100] = hms2[k];
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k++  
+        }
+
+
+        //slot in  4 hours of meeting student course 
+        for(let i = array.length-1;i>0;i--){
+            if(k2 < hms4.length){
+            
+                checking_1_Elective(combine,array,hms4[k2])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndexElective100] == 100 && combine[j-1+startIndexElective100] == 100 && j-1 != LastIndexElective50){
+                            
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndexElective100] = hms4[k2];
+                            combine[j-1+startIndexElective100] = hms4[k2];
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                
+                                if(combine[v+startIndexElective100] == 100 && combine[v-1+startIndexElective100] == 100 && v-1 != LastIndexElective50){
+                                    
+                                    array[v] = -1;
+                                    array[v-1] = -1;
+                                    combine[v+startIndexElective100] = hms4[k2];
+                                    combine[v-1+startIndexElective100] = hms4[k2];
+                                    b = 1
+                                }
+                                
+                                else if(combine[v+startIndexElective100] == 100 && combine[v+1+startIndexElective100] == 100 && v+1 != startIndexElective200){
+                                    
+                                    array[v] = -1;
+                                    array[v+1] = -1;
+                                    combine[v+startIndexElective100] = hms4[k2];
+                                    combine[v+1+startIndexElective100] = hms4[k2];
+                                    b = 1
+                                }
+                            }
+                            c = 1
+                    }
+                
+                    else if(combine[j+startIndexElective100] == 100 && combine[j+1+startIndexElective100] == 100 && j+1 != startIndexElective200){
+                            
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndexElective100] = hms4[k2];
+                            combine[j+1+startIndexElective100] = hms4[k2];
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                
+                                if(combine[p+startIndexElective100] == 100 && combine[p-1+startIndexElective100] == 100 && p-1 != LastIndexElective50){
+                                    
+                                    array[p] = -1;
+                                    array[p-1] = -1;
+                                    combine[p+startIndexElective100] = hms4[k2];
+                                    combine[p-1+startIndexElective100] = hms4[k2];
+                                    z = 1
+                                }
+                                
+                                else if(combine[p+startIndexElective100] == 100 && combine[p+1+startIndexElective100] == 100 && p+1 != startIndexElective200){
+                                    
+                                    array[p] = -1;
+                                    array[p+1] = -1;
+                                    combine[p+startIndexElective100] = hms4[k2];
+                                    combine[p+1+startIndexElective100] = hms4[k2];
+                                    z = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k2++  
+        }
+
+        //slot in  3 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k3 < hms3.length){
+            
+                checking_1_Elective(combine,array,hms3[k3])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));
+                    
+                    
+                    if(combine[j+startIndexElective100] == 100 && combine[j-1+startIndexElective100] == 100 && combine[j+1+startIndexElective100] == 100 && j-1 != LastIndexElective50 && j+1 != startIndexElective200 ){ // slot in 3 course at one time
+                        
+                        array[j] = -1;
+                        array[j-1] = -1;
+                        array[j+1] = -1;
+                        combine[j+startIndexElective100] = hms3[k3];
+                        combine[j-1+startIndexElective100] = hms3[k3];
+                        combine[j+1+startIndexElective100] = hms3[k3];
+                        c = 1
+                    }    
+
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k3++  
+        }
+
+        changeToZero(array)
+        changeToZero(combine)
+
+    return array;
+    
+}
+var AntArrInsElective100 = AntAlgoInsertElective100(AntArrElective100,AntArrCombineElective);
+
+const checkAmountDataElective100_2 = (array) => {
+    let count = 0
+    for(let i = 0; i < array.length; i++){
+            if(array[i] != 100 && array[i] !=100 && array[i] != 0 && array[i] != undefined && array[i] != 1){
+                count += 1
+            }
+    }
+    return count
+}
+var checkAmount_2 = checkAmountDataElective100_2(AntArrInsElective100)
+
+
+const checkAmountDataElective100_0 = (array) => {
+    let count = 0
+    for(let i = 0; i < array.length; i++){
+            if( array[i] == 0 ){
+                count += 1
+            }
+    }
+    return count
+}
+var checkAmount_0 = checkAmountDataElective100_0(AntArrElective100)
+
+
+
+//___________________________________________________________________________________________________________________________________
+
+//___________________________________________________________________________________________________________________________________
+
+const array1DElective200 = (data) => {
+    var result = []
+
+    for(let i = 0; i< data; i++){
+        result[i]= 100;
+    }
+    return result;
+}
+var AntArrElective200 = array1DElective200(DataArrayElective200);
+
+
+const AntAlgoInsertElective200 = (array,combine) => {
+
+
+    let test = []
+    let k = 0;
+    let k2 =0
+    let k3 =0
+    let hms2 = []
+    let hms3 = []
+    let hms4 = []
+
+
+        for(let x=0; x<filterDataElective200.length;x++){
+            if(filterDataElective200[x][7] == 2){
+                hms2.push(filterDataElective200[x])
+            }
+            if(filterDataElective200[x][7] == 4){
+                hms4.push(filterDataElective200[x])
+            }
+            if(filterDataElective200[x][7] == 3){
+                hms3.push(filterDataElective200[x])
+            }
+            test.push(filterDataElective200[x]);
+        }
+
+        //slot in  2 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k < hms2.length){
+                checking_1_Elective(combine,array,hms2[k])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndexElective200] == 100 && combine[j-1+startIndexElective200] == 100 && j-1 != LastIndexElective100){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndexElective200] = hms2[k];
+                            combine[j-1+startIndexElective200] = hms2[k];
+                            c = 1
+                    }
+                
+                    else if(combine[j+startIndexElective200] == 100 && combine[j+1+startIndexElective200] == 100 && j+1 != startIndexElective500){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndexElective200] = hms2[k];
+                            combine[j+1+startIndexElective200] = hms2[k];
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k++  
+        }
+
+
+        //slot in  4 hours of meeting student course 
+        for(let i = array.length-1;i>0;i--){
+            if(k2 < hms4.length){
+            
+                checking_1_Elective(combine,array,hms4[k2])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndexElective200] == 100 && combine[j-1+startIndexElective200] == 100 && j-1 != LastIndexElective100){
+                            
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndexElective200] = hms4[k2];
+                            combine[j-1+startIndexElective200] = hms4[k2];
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                
+                                if(combine[v+startIndexElective200] == 100 && combine[v-1+startIndexElective200] == 100 && v-1 != LastIndexElective100){
+                                    
+                                    array[v] = -1;
+                                    array[v-1] = -1;
+                                    combine[v+startIndexElective200] = hms4[k2];
+                                    combine[v-1+startIndexElective200] = hms4[k2];
+                                    b = 1
+                                }
+                                
+                                else if(combine[v+startIndexElective200] == 100 && combine[v+1+startIndexElective200] == 100 && v+1 != startIndexElective500){
+                                    
+                                    array[v] = -1;
+                                    array[v+1] = -1;
+                                    combine[v+startIndexElective200] = hms4[k2];
+                                    combine[v+1+startIndexElective200] = hms4[k2];
+                                    b = 1
+                                }
+                            }
+                            c = 1
+                    }
+                
+                    else if(combine[j+startIndexElective200] == 100 && combine[j+1+startIndexElective200] == 100 && j+1 != startIndexElective500){
+                            
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndexElective200] = hms4[k2];
+                            combine[j+1+startIndexElective200] = hms4[k2];
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                
+                                if(combine[p+startIndexElective200] == 100 && combine[p-1+startIndexElective200] == 100 && p-1 != LastIndexElective100){
+                                    
+                                    array[p] = -1;
+                                    array[p-1] = -1;
+                                    combine[p+startIndexElective200] = hms4[k2];
+                                    combine[p-1+startIndexElective200] = hms4[k2];
+                                    z = 1
+                                }
+                                
+                                else if(combine[p+startIndexElective200] == 100 && combine[p+1+startIndexElective200] == 100 && p+1 != startIndexElective500){
+                                    
+                                    array[p] = -1;
+                                    array[p+1] = -1;
+                                    combine[p+startIndexElective200] = hms4[k2];
+                                    combine[p+1+startIndexElective200] = hms4[k2];
+                                    z = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k2++  
+        }
+
+        //slot in  3 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k3 < hms3.length){
+            
+                checking_1_Elective(combine,array,hms3[k3])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));
+                    
+                    
+                    if(combine[j+startIndexElective200] == 100 && combine[j-1+startIndexElective200] == 100 && combine[j+1+startIndexElective200] == 100 && j-1 != LastIndexElective100 && j+1 != startIndexElective500 ){ // slot in 3 course at one time
+                        
+                        array[j] = -1;
+                        array[j-1] = -1;
+                        array[j+1] = -1;
+                        combine[j+startIndexElective200] = hms3[k3];
+                        combine[j-1+startIndexElective200] = hms3[k3];
+                        combine[j+1+startIndexElective200] = hms3[k3];
+                        c = 1
+                    }    
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k3++  
+        }
+
+        changeToZero(array)
+        changeToZero(combine)
+
+    return array;
+    
+}
+var AntArrInsElective200 = AntAlgoInsertElective200(AntArrElective200,AntArrCombineElective);
+
+const checkAmountDataElective200_2 = (array) => {
+    let count = 0
+    for(let i = 0; i < array.length; i++){
+            if(array[i] != 100 && array[i] !=200 && array[i] != 0 && array[i] != undefined && array[i] != 1){
+                count += 1
+            }
+    }
+    return count
+}
+var checkAmount_2 = checkAmountDataElective200_2(AntArrInsElective200)
+
+
+const checkAmountDataElective200_0 = (array) => {
+    let count = 0
+    for(let i = 0; i < array.length; i++){
+            if( array[i] == 0 ){
+                count += 1
+            }
+    }
+    return count
+}
+var checkAmount_0 = checkAmountDataElective200_0(AntArrElective200)
+
+//___________________________________________________________________________________________________________________________________
+
+//___________________________________________________________________________________________________________________________________
+
+const array1DElective500 = (data) => {
+    var result = []
+
+    for(let i = 0; i< data; i++){
+        result[i]= 100;
+    }
+    return result;
+}
+var AntArrElective500 = array1DElective500(DataArrayElective500);
+
+
+const AntAlgoInsertElective500 = (array,combine) => {
+
+
+    let test = []
+    let k = 0;
+    let k2 =0
+    let k3 =0
+    let hms2 = []
+    let hms3 = []
+    let hms4 = []
+
+
+        for(let x=0; x<filterDataElective500.length;x++){
+            if(filterDataElective500[x][7] == 2){
+                hms2.push(filterDataElective500[x])
+            }
+            if(filterDataElective500[x][7] == 4){
+                hms4.push(filterDataElective500[x])
+            }
+            if(filterDataElective500[x][7] == 3){
+                hms3.push(filterDataElective500[x])
+            }
+            test.push(filterDataElective500[x]);
+        }
+
+        //slot in  2 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k < hms2.length){
+                checking_1_Elective(combine,array,hms2[k])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndexElective500] == 100 && combine[j-1+startIndexElective500] == 100 && j-1 != LastIndexElective200){
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndexElective500] = hms2[k];
+                            combine[j-1+startIndexElective500] = hms2[k];
+                            c = 1
+                    }
+                
+                    else if(combine[j+startIndexElective500] == 100 && combine[j+1+startIndexElective500] == 100){
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndexElective500] = hms2[k];
+                            combine[j+1+startIndexElective500] = hms2[k];
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k++  
+        }
+
+
+        //slot in  4 hours of meeting student course 
+        for(let i = array.length-1;i>0;i--){
+            if(k2 < hms4.length){
+            
+                checking_1_Elective(combine,array,hms4[k2])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));    
+            
+                    if(combine[j+startIndexElective500] == 100 && combine[j-1+startIndexElective500] == 100 && j-1 != LastIndexElective200){
+                            
+                            array[j] = -1;
+                            array[j-1] = -1;
+                            combine[j+startIndexElective500] = hms4[k2];
+                            combine[j-1+startIndexElective500] = hms4[k2];
+                            let b = 0 
+                            while(b != 1){
+                                const v = Math.floor(Math.random()*(i+1));
+                                
+                                if(combine[v+startIndexElective500] == 100 && combine[v-1+startIndexElective500] == 100 && v-1 != LastIndexElective200){
+                                    
+                                    array[v] = -1;
+                                    array[v-1] = -1;
+                                    combine[v+startIndexElective500] = hms4[k2];
+                                    combine[v-1+startIndexElective500] = hms4[k2];
+                                    b = 1
+                                }
+                                
+                                else if(combine[v+startIndexElective500] == 100 && combine[v+1+startIndexElective500] == 100){
+                                    
+                                    array[v] = -1;
+                                    array[v+1] = -1;
+                                    combine[v+startIndexElective500] = hms4[k2];
+                                    combine[v+1+startIndexElective500] = hms4[k2];
+                                    b = 1
+                                }
+                            }
+                            c = 1
+                    }
+                
+                    else if(combine[j+startIndexElective500] == 100 && combine[j+1+startIndexElective500] == 100){
+                            
+                            array[j] = -1;
+                            array[j+1] = -1;
+                            combine[j+startIndexElective500] = hms4[k2];
+                            combine[j+1+startIndexElective500] = hms4[k2];
+                            let z = 0 
+                            while(z != 1){
+                                const p = Math.floor(Math.random()*(i+1));
+                                
+                                if(combine[p+startIndexElective500] == 100 && combine[p-1+startIndexElective500] == 100 && p-1 != LastIndexElective200){
+                                    
+                                    array[p] = -1;
+                                    array[p-1] = -1;
+                                    combine[p+startIndexElective500] = hms4[k2];
+                                    combine[p-1+startIndexElective500] = hms4[k2];
+                                    z = 1
+                                }
+                                
+                                else if(combine[p+startIndexElective500] == 100 && combine[p+1+startIndexElective500] == 100 ){
+                                    
+                                    array[p] = -1;
+                                    array[p+1] = -1;
+                                    combine[p+startIndexElective500] = hms4[k2];
+                                    combine[p+1+startIndexElective500] = hms4[k2];
+                                    z = 1
+                                }
+                            }
+                            c = 1
+                    }
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k2++  
+        }
+
+        //slot in  3 hours of meeting student course
+        for(let i = array.length-1;i>0;i--){
+            if(k3 < hms3.length){
+            
+                checking_1_Elective(combine,array,hms3[k3])
+                let c = 0
+                while(c != 1){
+                    const j = Math.floor(Math.random()*(i+1));
+                    
+                    
+                    if(combine[j+startIndexElective500] == 100 && combine[j-1+startIndexElective500] == 100 && combine[j+1+startIndexElective500] == 100 && j-1 != LastIndexElective200 ){ // slot in 3 course at one time
+                        
+                        array[j] = -1;
+                        array[j-1] = -1;
+                        array[j+1] = -1;
+                        combine[j+startIndexElective500] = hms3[k3];
+                        combine[j-1+startIndexElective500] = hms3[k3];
+                        combine[j+1+startIndexElective500] = hms3[k3];
+                        c = 1
+                    }    
+                }    
+            }
+            changeToZero(array)
+            changeToZero(combine)
+            k3++  
+        }
+
+        changeToZero(array)
+        changeToZero(combine)
+
+    return array;
+    
+}
+
+var AntArrInsElective500 = AntAlgoInsertElective500(AntArrElective500,AntArrCombineElective);
+
+const checkAmountDataElective500_2 = (array) => {
+    let count = 0
+    for(let i = 0; i < array.length; i++){
+            if(array[i] != 100 && array[i] !=500 && array[i] != 0 && array[i] != undefined && array[i] != 1){
+                count += 1
+            }
+    }
+    return count
+}
+var checkAmount_2 = checkAmountDataElective500_2(AntArrInsElective500)
+
+
+const checkAmountDataElective500_0 = (array) => {
+    let count = 0
+    for(let i = 0; i < array.length; i++){
+            if( array[i] == 0 ){
+                count += 1
+            }
+    }
+    return count
+}
+var checkAmount_0 = checkAmountDataElective500_0(AntArrElective500)
+
+//______________________________________________________________________________________________________________________________________________
 
 
 
 //---------------------------------------------------------------------------------------------------------------------------------------------
+
+//Combine both faculty courses and elective courses 
+let fullyCombine = []
+
+const combineAll = (faculty,elective) => {
+    let totalRoomFalculty = faculty.length / 38
+
+
+    for(let b = 0; b < totalRoomFalculty; b++){
+        let indexArray = b*38
+        let indexArrayElective = b*10
+
+        for(let i = 0; i < 20; i++){
+            try{
+                fullyCombine.push(faculty[i+indexArray])
+             }catch{}
+         }
+         for(let i = 0; i < 10; i++){
+             try{
+                fullyCombine.push(elective[i+indexArrayElective])
+              }catch{}
+          }
+          for(let i = 20; i < 34; i++){
+             try{
+                fullyCombine.push(faculty[i+indexArray])
+              }catch{}
+          }
+          for(let i = 34; i < 36; i++){
+             try{
+                fullyCombine.push(["Solat Jumaat"])
+              }catch{}
+          }
+          for(let i = 34; i < 38; i++){
+             try{
+                fullyCombine.push(faculty[i+indexArray])
+              }catch{}
+          }
+    }
+
+
+}
+combineAll(AntArrCombine,AntArrCombineElective)
+
+
+const checkAmountDataCombine_2_fully = (array) => {
+    let count = 0
+    for(let i = 0; i < array.length; i++){
+            if(array[i] != 100 && array[i] !=100 && array[i] != 0 && array[i] != undefined && array[i] != 1){
+                count += 1
+            }
+    }
+    return count
+}
+var checkAmount_combine = checkAmountDataCombine_2_fully(fullyCombine)
+ //console.log(fullyCombine)
+ //console.log("Amount of data: " +checkAmount_combine);
+
+
+
+const checkAmountDataCombineFully = (array) => {
+    let count = 0
+    for(let i = 0; i < array.length; i++){
+            if( array[i] == 0 ){
+                count += 1
+            }
+    }
+    return count
+}
+ var checkAmount_combineData = checkAmountDataCombineFully(fullyCombine)
+
+
 //----------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-//console.log(dataCombine)
 //-----------------------------------------------------------------------------------------------------------------------------------------------
+
+//Faculty
+
 // Hard Constraint 
 // H1: No student attend more than one class/ event at the same time
 // H2: The room is large enough to accomodate all of the student in attendace while also meeting the requirement 
@@ -2329,16 +2505,12 @@ const check1Group = (array) => {
    }
    for(let x= 1 ; x <= totalRoom ; x++){
        try{
-           //for(let x= 1 ; x <= totalRoom ; x++){
             for(let i = 0; i<array.length ; i++){
-               indexArray = (x * 37)
+               indexArray = (x * 38)
                if(array[i+indexArray] != 100 && array[i+indexArray] != undefined  && array[i+indexArray] != 1 && array[i+indexArray] != 0 ){
                    try{
-                       //if(array[i][6] == array[i+indexArray][6] && array[i+1][6] == array[i+indexArray+1][6] && array[i][5] == array[i+indexArray][5] && array[i+1][5] == array[i+indexArray+1][5]){
-                       if(array[i][6] == array[i+indexArray][6] && array[i][5] == array[i+indexArray][5]){
+                       if(array[i][6] == array[i+indexArray][6]){
                             try{
-                                // console.log(i)
-                                // console.log(i+indexArray)
                                 count +=1
                             }catch{}
                        }
@@ -2352,11 +2524,6 @@ const check1Group = (array) => {
 }
 
 var checkH1_ALL = check1Group(AntArrCombine)
-//console.log("HC1 Counter: "+checkH1_ALL);
-//var checkH1_ALLElective = check1Group(dataCombineElective)
-
-
-
 
 
 //Check for the H2 violation: classsroom is large enough to accomodate number of student enroll to that class
@@ -2365,8 +2532,6 @@ const checkRoomQuota = (array) => {
    let count = 0
    return count 
 }
-//var checkH2_ALL = checkRoomQuota(dataCombine)
-//var checkH2_ALLElective = checkRoomQuota(dataCombineElective)
 
 
 //Check for the H4 violation: no one attend class during 12:00 - 14:00 due to solat jumaat
@@ -2374,11 +2539,8 @@ const checkSolatJummat = (array) => {
    let count = 0
    return count 
 }
-//var checkH4_ALL = checkSolatJummat(dataCombine)
-//var checkH4_ALLElective = checkSolatJummat(dataCombineElective)
 
 //Check for the H5 violation: each teacher can teach 1 subject at 1 room at each slot of time
-
 const check1Teacher = (array) => {
    let count =0
    let indexArray = 0
@@ -2390,8 +2552,6 @@ const check1Teacher = (array) => {
                if(array[i+indexArray] != 100 && array[i+indexArray] != undefined && array[i+indexArray] != 1 && array[i+indexArray] != 0 ){
                    try{
                        if(array[i][5] == array[i+indexArray][5]){
-                        //    console.log(i)
-                        //    console.log(i+indexArray)
                            count +=1
                         }
                    }catch{}
@@ -2404,30 +2564,99 @@ const check1Teacher = (array) => {
 
 }
 var checkH5_ALL = check1Teacher(AntArrCombine)
-//console.log("HC5 Counter: "+checkH5_ALL)
-//var checkH5_ALLElective = check1Group(dataCombineElective)
 
-const checkHC = (data1,data2) => {
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+//Elective
+
+//Check for the H1 violation: same group attend more than 1 class at 1 time
+const check1GroupElective = (array) => {
+    let count =0
+    let indexArray = 0
+    //let totalRoom = array.length / 38
+    let totalRoom = array.length / 10
+    for(let x= 1 ; x <= totalRoom ; x++){
+        //indexArray = (x * 38)
+        indexArray = (x * 10)
+    }
+    for(let x= 1 ; x <= totalRoom ; x++){
+        try{
+             for(let i = 0; i<array.length ; i++){
+                //indexArray = (x * 38)
+                indexArray = (x * 10)
+                if(array[i+indexArray] != 100 && array[i+indexArray] != undefined  && array[i+indexArray] != 1 && array[i+indexArray] != 0 ){
+                    try{
+                        if(array[i][6] == array[i+indexArray][6]){
+                             try{
+                                 count +=1
+                             }catch{}
+                        }
+                    }catch{}
+                }   
+            }
+        }catch{}
+    }
+    return count
+ 
+ }
+ 
+ var checkH1_ALL_Elective = check1GroupElective(AntArrCombineElective)
+ 
+ //Check for the H2 violation: classsroom is large enough to accomodate number of student enroll to that class
+ const checkRoomQuotaElective = (array) => {
+    let count = 0
+    return count 
+ }
+ var checkH2_ALL_Elective = checkRoomQuotaElective(AntArrCombineElective)
+ 
+ 
+ //Check for the H4 violation: no one attend class during 12:00 - 14:00 due to solat jumaat
+ const checkSolatJummatElective = (array) => {
+    let count = 0
+    return count 
+ }
+ var checkH4_ALL_Elective = checkSolatJummatElective(AntArrCombineElective)
+ 
+ //Check for the H5 violation: each teacher can teach 1 subject at 1 room at each slot of time
+ const check1TeacherElective = (array) => {
+    let count =0
+    let indexArray = 0
+    let totalRoom = array.length / 10
+    for(let x= 1 ; x <= totalRoom ; x++){
+     indexArray = (x * 10)
+        try{
+         for(let i = 1; i<array.length ; i++){
+                if(array[i+indexArray] != 100 && array[i+indexArray] != undefined && array[i+indexArray] != 1 && array[i+indexArray] != 0 ){
+                    try{
+                        if(array[i][5] == array[i+indexArray][5]){
+                            count +=1
+                         }
+                    }catch{}
+                }    
+            }
+        }catch{}
+    }
+    return count
+ 
+ 
+ }
+ var checkH5_ALL_ELective = check1TeacherElective(AntArrCombineElective)
+ //------------------------------------------------------------------------------------------------------------------------------------------
+
+const checkHC = (data1,data2,data3,data4) => {
     let count =0;
-    if(data1 != 0){
-        count +=1
-    }
-    if(data2 != 0){
-        count +=1
-    }
-
+    count = data1 + data2 + data3 + data4
     return count;
 }
-let checkTotalHardContraints = checkHC(checkH5_ALL,checkH1_ALL)
-console.log("Total Hard Constraint: "+checkTotalHardContraints)
-
+let checkTotalHardContraints = checkHC(checkH5_ALL,checkH1_ALL,checkH5_ALL_ELective,checkH1_ALL_Elective)
+//console.log("Total Hard Constraint: "+checkTotalHardContraints)
 
 //----------------------------------------------------------------------------------------------------------------------------------------
-
-
 // Soft Constraint 
 // S1: A student has a class schedule toward the end of the day
 // S2: A student have more than two class in a row
+
+// Faculty
 
 
 //Check for the S1 violation: student have class at the end of the day
@@ -2437,33 +2666,26 @@ const checkEndOfClass = (array) => {
    for(let x= 1 ; x <= totalRoom ; x++){
        let indexArray = (x * 37)
        if(array[indexArray] != 100 ){
-           count = 1
+           count += 1
        }
    }
    return count
 
 }
-// var checkS1_50 = checkEndOfClass(AntArr50)
-// var checkS1_100 = checkEndOfClass(AntArr50)
-// var checkS1_200 = checkEndOfClass(AntArr200)
-// var checkS1_500 = checkEndOfClass(AntArr500)
-// var checkS1_Elective50 = checkEndOfClass(AntArrElective50)
-// var checkS1_Elective100 = checkEndOfClass(AntArrElective100)
-// var checkS1_Elective200 = checkEndOfClass(AntArrElective200)
-// var checkS1_Elective500 = checkEndOfClass(AntArrElective500)
+
  var checkSC1_ALL = checkEndOfClass(AntArrCombine)
 
 
 
-//Check for the S2 violation: teacher have 2 class in a row
+//Check for the S2 violation: student have 2 class in a row
 
 const check2ClassInARow = (array) => {
    let count =0
    for(let i = 0; i < array.length; i++){
        try{
-        if(array[i][5] != undefined && array[i+3][5] != undefined && array[i+2][5] != undefined && array[i+4][5] != undefined){
-            if(array[i][5] == array[i+3][5] && array[i+2][5] == array[i+4][5]){
-                count = 1
+        if(array[i] != 100 && array[i+3] != 100){
+            if(array[i][6] == array[i+3][6]){
+                count += 1
             }
        }
        }catch{}
@@ -2471,51 +2693,47 @@ const check2ClassInARow = (array) => {
    return count
 
 }
-// var checkS2_50 = check2ClassInARow(AntArr50)
-// var checkS2_100 = check2ClassInARow(AntArr50)
-// var checkS2_200 = check2ClassInARow(AntArr200)
-// var checkS2_500 = check2ClassInARow(AntArr500)
-// var checkS2_Elective50 = check2ClassInARow(AntArrElective50)
-// var checkS2_Elective100 = check2ClassInARow(AntArrElective100)
-// var checkS2_Elective200 = check2ClassInARow(AntArrElective200)
-// var checkS2_Elective500 = check2ClassInARow(AntArrElective500)
-var checkSC2_ALL = checkEndOfClass(AntArrCombine)
+
+var checkSC2_ALL = check2ClassInARow(AntArrCombine)
 
 
 //----------------------------------------------------------------------------------------------------------------------------------------------
 
+//Elective
+
+const checkEndOfClassElective = (array) => {
+    let count =0
+    let totalRoom = array.length / 10
+    for(let x= 1 ; x <= totalRoom ; x++){
+        let indexArray = (x * 9)
+        if(array[indexArray] != 100 ){
+            count += 1
+        }
+    }
+    return count
+ 
+ } 
+var checkSC1_ALL_Elective = checkEndOfClassElective(AntArrCombineElective)
+ 
+ //Check for the S2 violation: teacher have 2 class in a row
+ const check2ClassInARowElective = (array) => {
+    let count =0
+    for(let i = 0; i < array.length; i++){
+        try{
+         if(array[i] != 100 && array[i+3] != 100){
+             if(array[i][6] == array[i+3][6]){
+                 count += 1
+             }
+        }
+        }catch{}
+    }
+    return count
+ 
+ }
+ var checkSC2_ALL_Elective = check2ClassInARowElective(AntArrCombineElective)
+
 //-----------------------------------------------------------------------------------------------------------------------------------------------
 
-
-
-
-
-//Check total Hard Constraint
-
-// const checkTotalHardContraint = () => {
-//    let count =0
-//    //let totalH1 = checkH1_ALL
-// //    let totalH2 = checkH2_ALL
-// //    let totalH4 = checkH4_ALL
-// //    let totalH5 = checkH5_ALL
-
-// //    let totalH1_Elective = checkH1_ALLElective
-// //    let totalH2_Elective = checkH2_ALLElective
-// //    let totalH4_Elective = checkH4_ALLElective
-// //    let totalH5_Elective = checkH5_ALLElective
-//    //let totalHC = totalH1 + totalH2 + totalH4 + totalH5 + totalH1_Elective + totalH2_Elective + totalH4_Elective + totalH5_Elective
-//    //let totalHC = totalH1 + totalH2 + totalH4 + totalH5
-//    //let totalHC = totalH2 + totalH4 + totalH5
-//    //let totalHC = totalH1 + totalH2 + totalH4 + totalH5 
-
-// //    if( totalHC != 0){
-// //        count +=1
-// //    }   
-
-//    return totalHC
-// }
-// var checkTotalHardContraints = checkTotalHardContraint()
-// console.log("Total Hard Constraint: "+checkTotalHardContraints)
 
 
 
@@ -2527,18 +2745,11 @@ var checkSC2_ALL = checkEndOfClass(AntArrCombine)
 //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 const checkTotalSoftContraint = () => {
-    let count =0
-    let totalSC = checkSC1_ALL + checkSC2_ALL
-    // let totalS1 = checkS1_50 + checkS1_100 + checkS1_200 + checkS1_500 + checkS1_Elective50 + checkS1_Elective100 + checkS1_Elective200 + checkS1_Elective500
-    // let totalS2 = checkS2_50 + checkS2_100 + checkS2_200 + checkS2_500 + checkS2_Elective50 + checkS2_Elective100 + checkS2_Elective200 + checkS2_Elective500
-    
-    if(totalSC != 0){
-        count +=1
-    }
+    let count = checkSC1_ALL + checkSC2_ALL + checkSC1_ALL_Elective + checkSC2_ALL_Elective
     return count
 }
 var checkTotalSoftContraints = checkTotalSoftContraint()
-console.log("Total Soft Constraint: "+checkTotalSoftContraints)
+//console.log("Total Soft Constraint: "+checkTotalSoftContraints)
 //----------------------------------------------------------------------------------------------------------------------------------------------
 
 const change100ToEmpty = (data) => {
@@ -2549,239 +2760,466 @@ const change100ToEmpty = (data) => {
     }
     return data;
 }
-let finalData = change100ToEmpty(AntArrCombine);
-
-const change100ToEmptyElective = (data) => {
-    for(let i = 0; i< data.length; i++){
-        if(data[i] == 100){
-            data[i] = [];
-        }
-    }
-    return data;
-}
-
-
-// const checkMissingData = (data50,data100,data200,data500,dataE50,dataE100,dataE200,dataE500) => {
-//     let countData = []
-//     for(let i = 0; i< courseData[0].length;i++){
-//         for(let j = 0; j <courseData[0][i][7]; j++){
-//             countData.push(courseData[0][i]);
-//         }
-//     }
-
-//     let totalGenerateScheduleData = data50 + data100 + data200 + data500 + dataE50 + dataE100 + dataE200 + dataE500
-
-//     if(countData.length == totalGenerateScheduleData){
-  
-//     }else{
-
-//     }
-// }
-// //checkMissingData(checkAmount50,checkAmount100,checkAmount200,checkAmount500,checkAmountElective50,checkAmountElective100,checkAmountElective200,checkAmountElective500)
-
+let finalData = change100ToEmpty(fullyCombine);
 
 checkTotalHardContraintsAll = checkTotalHardContraints
 checkTotalSoftContraintsAll = checkTotalSoftContraints
+totalAmountofDataSlottedIn = checkAmount_combine
+finalDataAll = []
 finalDataAll.push(finalData)
-return {checkTotalHardContraints,checkTotalSoftContraints,finalData}
- ////return {checkTotalHardContraints,checkTotalSoftContraints}
+return {checkTotalHardContraints,checkTotalSoftContraints,finalData,checkAmount_combine}
 }
-// for(let i = 1; i <= 1; i++){
-//     console.log("iteration: " + i)
-//     let antSystemAlgo = antSystem();
-// }
+
 // -------------------------------------------------------------------------------------------------------------------------------------------
 
 let trigger = 0
-var t0 = performance.now()
+
 const iteration = () => {
-        //antSystem()
+        antSystem()
         let globalBestHS = checkTotalHardContraintsAll 
         let globalBestSS = checkTotalSoftContraintsAll
         let globalBestScehdule = finalDataAll[0]
-        // let globalBestScehduleElective = finalDataAllElective[0]
-    for(let i= 1; i <= 500; i++){
+        let checkTotalAmountDataset = totalAmountofData.length + 56
+        // maxHCS = 0
+        // maxSCS = 0
+        minHCS = globalBestHS
+        minSCS = globalBestSS
+    for(let i= 1; i <= 5; i++){
         antSystem()
         let localBestHS = checkTotalHardContraintsAll 
         let localBestSS = checkTotalSoftContraintsAll
         let localBestScehdule = finalDataAll[0]
-        // let localBestScehduleElective = finalDataAllElective[0]
             console.log("iteraion: " + i)
-            if(globalBestHS > localBestHS ){
-                globalBestHS = localBestHS
-                globalBestSS = localBestSS
+            if(localBestHS == 0 && localBestSS == 0 && checkTotalAmountDataset == totalAmountofDataSlottedIn){
+                //console.log("iteraion: " + i)
+                //console.log("perfect solution is found")
+                globalBestHS = 0
+                globalBestSS = 0
                 globalBestScehdule = localBestScehdule
-                // globalBestScehduleElective = localBestScehduleElective
+                //console.log("Perfect Gloabal best HS: "+globalBestHS)
+                //console.log("Perfect Gloabal best SS: " +globalBestSS)
+                countPerfectSlt += 1
             }
-            if(localBestHS == 0){
-                console.log("iteraion: " + i)
-                console.log("workable solution is found")
-                globalBestHS = localBestHS
-                globalBestSS = localBestSS
-                globalBestScehdule = localBestScehdule
-                // globalBestScehduleElective = localBestScehduleElective
-                console.log("Workable Gloabal best HS: "+globalBestHS)
-                console.log("Workable Gloabal best SS: " +globalBestSS)
-                //console.log(finalDataAll[0])
-                trigger = 1
-                //return [finalDataAll[0], finalDataAllElective[0]]
-                return [finalDataAll[0]]
+            else if(localBestHS == 0 && checkTotalAmountDataset == totalAmountofDataSlottedIn){
+                //console.log("iteraion: " + i)
+                //console.log("workable solution is found")
+                //console.log("Workable Gloabal best HS: "+localBestHS)
+                //console.log("Workable Gloabal best SS: " +localBestSS)
+                countWKSlt += 1
+                if(globalBestSS > localBestSS){
+                    globalBestHS = 0
+                    globalBestSS = localBestSS
+                    globalBestScehdule = localBestScehdule
+                    //console.log("Updated Gloabal best HS: "+globalBestHS)
+                    //console.log("Updated Gloabal best SS: " +globalBestSS)
+                }
             }
-            else if(localBestHS == 0 && localBestSS == 0){
-                console.log("iteraion: " + i)
-                console.log("perfect solution is found")
-                globalBestHS = localBestHS
-                globalBestSS = localBestSS
-                globalBestScehdule = localBestScehdule
-                console.log("Perfect Gloabal best HS: "+globalBestHS)
-                console.log("Perfect Gloabal best SS: " +globalBestSS)
-                console.log(finalDataAll[0])
+
+            if(i == 5 && globalBestHS == 0){
+                //console.log(globalBestScehdule)
+                //console.log("Final Gloabal best HS: "+globalBestHS)
+                //console.log("Final Gloabal best SS: " +globalBestSS)
                 trigger = 1
-                //return [finalDataAll[0], finalDataAllElective[0]]
-                return [finalDataAll[0]]
+                MainData = globalBestScehdule
+                byLectureData = globalBestScehdule
+                byCourseData = globalBestScehdule
+                return [globalBestScehdule]
+            }
+            if(localBestHS > maxHCS){
+                //maxHC = localBestHS
+                maxHCS = localBestHS
+            }
+            if(localBestSS > maxSCS){
+                maxSCS = localBestSS
+                //maxSCS = maxSC
+            }
+            if(localBestHS < minHCS){
+                minHCS = localBestHS
+                //minHCS = minHC
+            }
+            if(localBestSS < minSCS){
+                minSCS = localBestSS
+                //console.log("minSC: " + minSC)
+                //minSCS = minSC
             }
     }
-    //return [finalDataAll[0], finalDataAllElective[0]]
-    return [finalDataAll[0]]
 }
-let interations = iteration()
-
-let presentableData = []
-//let presentableDataElective = []
+iteration()
 
 if(trigger == 1){
-//shot course code, course name and lecturer    
-const changeToPresentationData = (data) => {
-    for(let i= 0; i <= data[0].length; i++){
-        try {
-            presentableData.push([data[0][i][1],data[0][i][2],data[0][i][5]])
-        } catch (error) {
-            
-        }
-    }
-}
-changeToPresentationData(interations)
-
-
-let allRoomName = []
-for(let i = 0; i < roomData[0].length; i++){
-    allRoomName.push(roomData[0][i][0])
-}
-allRoomName.unshift("Room");
-if(allRoomName.pop() == undefined){
-}
-
-
-let weekday = ['Monday','Monday','Monday','Monday','Monday','Monday','Monday','Monday','Monday','Monday',
-'Tuesday','Tuesday','Tuesday','Tuesday','Tuesday','Tuesday','Tuesday','Tuesday','Tuesday','Tuesday',
-'Thursday','Thursday','Thursday','Thursday','Thursday','Thursday','Thursday','Thursday','Thursday','Thursday',
-'Friday','Friday','Friday','Friday','Friday','Friday','Friday','Friday']
-
-let wed = ['Wednesday','Wednesday','Wednesday','Wednesday','Wednesday','Wednesday','Wednesday','Wednesday','Wednesday','Wednesday']
-
-
-const create2dArray = (weekdayArray,partDay,arrayAll, partAll) => {
-    var tmp = [];
-
-    for(var i = 0; i < weekdayArray.length; i += partDay) {
-        tmp.push(weekdayArray.slice(i, i + partDay));
-    }
-    for(var i = 0; i < arrayAll.length; i += partAll) {
-        tmp.push(arrayAll.slice(i, i + partAll));
-    }
-    return tmp;
-}
-let dataset = create2dArray(weekday,38,presentableData,38)
-console.log(dataset);
-
-const create2dArrayElective = (weekdayArray,partDay,arrayAll, partAll) => {
-    var tmp = [];
-
-    for(var i = 0; i < weekdayArray.length; i += partDay) {
-        tmp.push(weekdayArray.slice(i, i + partDay));
-    }
-    for(var i = 0; i < arrayAll.length; i += partAll) {
-        tmp.push(arrayAll.slice(i, i + partAll));
-    }
-    return tmp;
-}
-
-
-const insertRoomName = (roomData,array) => {
-    for(let i= 0; i<array.length; i++){
-        array[i].unshift(roomData[i]);
-    }
-    return array;
-}
-
-insertRoomName(allRoomName,dataset)
-
-
-/** Convert a 2D array into a CSV string
- */
-  function arrayToCsv(data){
-    //console.log(data)
-    return data.map(row =>
-      row
-      .map(String)  // convert every value to String
-      .map(v => v.replaceAll('"', '""'))  // escape double colons
-      .map(v => `"${v}"`)  // quote it
-      .join(',')  // comma-separated
-    ).join('\r\n');  // rows starting on new lines
-  }
-
-let csv = arrayToCsv(
-    dataset
-);
-
-function downloadBlob(content, filename, contentType) {
-    // Create a blob
-    var blob = new Blob([content], { type: contentType });
-    var url = URL.createObjectURL(blob);
-  
-    // Create a link to download it
-    var pom = document.createElement('a');
-    pom.href = url;
-    pom.setAttribute('download', filename);
-    pom.click();
-  }
-
-  /** Convert a 2D array into a CSV string
-   * elective
- */
-
-
-function downloadBlobElective(content, filename, contentType) {
-    // Create a blob
-    var blob = new Blob([content], { type: contentType });
-    var url = URL.createObjectURL(blob);
-  
-    // Create a link to download it
-    var pom = document.createElement('a');
-    pom.href = url;
-    pom.setAttribute('download', filename);
-    pom.click();
-  }
-
     var t1 = performance.now()
+    disbaleButton = false
     console.log("Duration: " + (t1-t0))
-    downloadBlob(csv, 'ModifiedAntSystem_GeneratedSchedule.csv', 'text/csv;charset=utf-8;')
-  //downloadBlobElective(csvElective, 'ModifiedAntSystemElective_GeneratedSchedule.csv', 'text/csv;charset=utf-8;')
+    console.log("Duration: " + (t1-t0) + " milliseconds" )
+    console.log("Max HC: " + maxHCS)
+    console.log("Min HC: " + minHCS)
+    console.log("Max SC: " + maxSCS)
+    console.log("Min SC: " + minSCS)
+    console.log("Workable Solution: " + countWKSlt)
+    console.log("Perfect Solution: " + countPerfectSlt)
 }else{
     var t1 = performance.now()
     console.log("Duration: " + (t1-t0) + " milliseconds" )
+    console.log("Max HC: " + maxHCS)
+    console.log("Min HC: " + minHCS)
+    console.log("Max SC: " + maxSCS)
+    console.log("Min SC: " + minSCS)
+    console.log("Workable Solution: " + countWKSlt)
     alert("no workable solution found, please refersh until get workable solution")
+    window.location.href = "/"
 }
 
 
 //----------------------------------------------------------------------------------------------------------------------------------------
 
         }
+
+        const mainGeneratedSchedule = () => {
+            const changeToPresentationData = (data) => {
+                
+                for(let i= 0; i <= data.length; i++){
+                    try {
+                            presentableData.push([data[i][1],data[i][6],data[i][11]])
+                    } catch (error) {
+                        
+                    }
+                }
+            }
+            changeToPresentationData(MainData)
+            
+            let allRoomName = []
+            for(let i = 0; i < roomData[0].length; i++){
+                allRoomName.push(roomData[0][i][0])
+            }
+            allRoomName.unshift("Room");
+            if(allRoomName.pop() == undefined){
+            }
+            
+            
+            let weekday = [
+            'Mon[0800-0900]','Mon[0900-1000]','Mon[1000-1100]','Mon[1100-1200]','Mon[1200-1300]','Mon[1300-1400]','Mon[1400-1500]','Mon[1500-1600]','Mon[1600-1700]','Mon[1700-1800]',
+            'Tue[0800-0900]','Tue[0900-1000]','Tue[1000-1100]','Tue[1100-1200]','Tue[1200-1300]','Tue[1300-1400]','Tue[1400-1500]','Tue[1500-1600]','Tue[1600-1700]','Tue[1700-1800]',
+            'Wed[0800-0900]','Wed[0900-1000]','Wed[1000-1100]','Wed[1100-1200]','Wed[1200-1300]','Wed[1300-1400]','Wed[1400-1500]','Wed[1500-1600]','Wed[1600-1700]','Wed[1700-1800]',
+            'Thu[0800-0900]','Thu[0900-1000]','Thu[1000-1100]','Thu[1100-1200]','Thu[1200-1300]','Thu[1300-1400]','Thu[1400-1500]','Thu[1500-1600]','Thu[1600-1700]','Thu[1700-1800]',
+            'Fri[0800-0900]','Fri[0900-1000]','Fri[1000-1100]','Fri[1100-1200]','Fri[1200-1300]','Fri[1300-1400]','Fri[1400-1500]','Fri[1500-1600]','Fri[1600-1700]','Fri[1700-1800]',
+            ]
+            
+            
+            const create2dArray = (weekdayArray,partDay,arrayAll, partAll) => {
+                var tmp = [];
+            
+                for(var i = 0; i < weekdayArray.length; i += partDay) {
+                    tmp.push(weekdayArray.slice(i, i + partDay));
+                }
+                for(var i = 0; i < arrayAll.length; i += partAll) {
+                    tmp.push(arrayAll.slice(i, i + partAll));
+                }
+                return tmp;
+            }
+            let dataset = create2dArray(weekday,50,presentableData,50)
+            console.log(dataset);
+            
+            
+            
+            const insertRoomName = (roomData,array) => {
+                for(let i= 0; i<array.length; i++){
+                    array[i].unshift(roomData[i]);
+                }
+                return array;
+            }
+            
+            insertRoomName(allRoomName,dataset)
+            
+            
+            /** Convert a 2D array into a CSV string
+             */
+              function arrayToCsv(data){
+                return data.map(row =>
+                  row
+                  .map(String)  // convert every value to String
+                  .map(v => v.replaceAll('"', '""'))  // escape double colons
+                  .map(v => `"${v}"`)  // quote it
+                  .join(',')  // comma-separated
+                ).join('\r\n');  // rows starting on new lines
+              }
+            
+            let csv = arrayToCsv(
+                dataset
+            );
+            
+            function downloadBlob(content, filename, contentType) {
+                // Create a blob
+                var blob = new Blob([content], { type: contentType });
+                var url = URL.createObjectURL(blob);
+              
+                // Create a link to download it
+                var pom = document.createElement('a');
+                pom.href = url;
+                pom.setAttribute('download', filename);
+                pom.click();
+              }
+
+              downloadBlob(csv, 'ModifiedAntSystem_GeneratedSchedule.csv', 'text/csv;charset=utf-8;')
+        
+        }
+
+        const lecturerGeneratedSchedule = () => {
+            let testData = []
+            let i = 0
+            let LoopTable = []
+
+            for(let i = 0 ; i < notDuplicatesLecturerArray.length; i++){
+                const dupeData = [...byLectureData]
+                testData = []
+
+                for(let x = 0; x < dupeData.length ; x++){
+                    try{
+                            if(notDuplicatesLecturerArray[i] == dupeData[x][5]){
+                            }
+                            else{
+                                dupeData[x] = []
+                            }
+                    }catch{}
+                }
+                    testData.push(dupeData);
+
+                    const changeToPresentationData = (data) => {
+                        
+                        presentableDataLecturer = []
+                        for(let i= 0; i <= data.length; i++){
+                            try {
+                                    presentableDataLecturer.push([data[i][1],data[i][5],data[i][6]])
+                            } catch (error) {
+                                
+                            }
+                        }
+                    }
+                    changeToPresentationData(testData[0])
+        
+                    let allRoomName = []
+                    for(let i = 0; i < roomData[0].length; i++){
+                        allRoomName.push(roomData[0][i][0])
+                    }
+                    allRoomName.unshift("Room");
+                    if(allRoomName.pop() == undefined){
+                    }
+
+                    
+                    let weekday = [
+                    'Mon[0800-0900]','Mon[0900-1000]','Mon[1000-1100]','Mon[1100-1200]','Mon[1200-1300]','Mon[1300-1400]','Mon[1400-1500]','Mon[1500-1600]','Mon[1600-1700]','Mon[1700-1800]',
+                    'Tue[0800-0900]','Tue[0900-1000]','Tue[1000-1100]','Tue[1100-1200]','Tue[1200-1300]','Tue[1300-1400]','Tue[1400-1500]','Tue[1500-1600]','Tue[1600-1700]','Tue[1700-1800]',
+                    'Wed[0800-0900]','Wed[0900-1000]','Wed[1000-1100]','Wed[1100-1200]','Wed[1200-1300]','Wed[1300-1400]','Wed[1400-1500]','Wed[1500-1600]','Wed[1600-1700]','Wed[1700-1800]',
+                    'Thu[0800-0900]','Thu[0900-1000]','Thu[1000-1100]','Thu[1100-1200]','Thu[1200-1300]','Thu[1300-1400]','Thu[1400-1500]','Thu[1500-1600]','Thu[1600-1700]','Thu[1700-1800]',
+                    'Fri[0800-0900]','Fri[0900-1000]','Fri[1000-1100]','Fri[1100-1200]','Fri[1200-1300]','Fri[1300-1400]','Fri[1400-1500]','Fri[1500-1600]','Fri[1600-1700]','Fri[1700-1800]',
+                    ]
+                    
+                    const create2dArray = (weekdayArray,partDay,arrayAll, partAll) => {
+                        var tmp = [];
+                        for(var i = 0; i < weekdayArray.length; i += partDay) {
+                            tmp.push(weekdayArray.slice(i, i + partDay));
+                        }
+                        for(var i = 0; i < arrayAll.length; i += partAll) {
+                            tmp.push(arrayAll.slice(i, i + partAll));
+                        }
+
+
+                        return tmp;
+                    }
+                    let dataset = create2dArray(weekday,50,presentableDataLecturer,50)
+
+                    const insertRoomName = (roomData,array) => {
+                        for(let i= 0; i<array.length; i++){
+                            array[i].unshift(roomData[i]);
+                        }
+                        return array;
+                    }
+                    
+                    insertRoomName(allRoomName,dataset)
+                    LoopTable.push(dataset);
+                }
+
+                console.log(LoopTable)
+                let csvData = []
+                for(let i = 0; i < LoopTable.length; i++){
+                    csvData.push(["Lecturer Name"])
+                    csvData.push([notDuplicatesLecturerArray[i]])
+                    csvData.push(["Lecturer Code"])
+                    csvData.push([notDuplicatesLecturerCodeArray[i]])
+                    for(let j =0; j< LoopTable[i].length; j++){
+                        csvData.push(LoopTable[i][j]);
+                    }
+                    csvData.push([])
+                }
+                console.log(csvData)
+            
+            
+            
+            /** Convert a 2D array into a CSV string
+             */
+              function arrayToCsv(data){
+                //console.log(data)
+                return data.map(row =>
+                  row
+                  .map(String)  // convert every value to String
+                  .map(v => v.replaceAll('"', '""'))  // escape double colons
+                  .map(v => `"${v}"`)  // quote it
+                  .join(',')  // comma-separated
+                ).join('\r\n');  // rows starting on new lines
+              }
+
+            let csv = arrayToCsv(
+                csvData
+            );
+            
+            function downloadBlob(content, filename, contentType) {
+                var blob = new Blob([content], { type: contentType });
+                var url = URL.createObjectURL(blob);
+              
+                var pom = document.createElement('a');
+                pom.href = url;
+                pom.setAttribute('download', filename);
+                pom.click();
+              }
+
+            downloadBlob(csv, 'ModifiedAntSystem_GeneratedSchedule_by_Lecturer.csv', 'text/csv;charset=utf-8;')
+
+                
+        }
+
+        const courseGeneratedSchedule = () => {
+            let testData = []
+            let i = 0
+            let LoopTable = []
+
+            for(let i = 0 ; i < courseCodeArray.length; i++){
+                const dupeData = [...byCourseData]
+                testData = []
+
+                for(let x = 0; x < dupeData.length ; x++){
+                    try{
+                            if(courseCodeArray[i] == dupeData[x][1]){
+                            }
+                            else{
+                                dupeData[x] = []
+                            }
+                    }catch{}
+                }
+                    testData.push(dupeData);
+
+                    const changeToPresentationData = (data) => {
+                        
+                        presentableDataLecturer = []
+                        for(let i= 0; i <= data.length; i++){
+                            try {
+                                    presentableDataLecturer.push([data[i][1],data[i][6],data[i][11]])
+                            } catch (error) {
+                                
+                            }
+                        }
+                    }
+                    changeToPresentationData(testData[0])
+                    
+                    let allRoomName = []
+                    for(let i = 0; i < roomData[0].length; i++){
+                        allRoomName.push(roomData[0][i][0])
+                    }
+                    allRoomName.unshift("Room");
+                    if(allRoomName.pop() == undefined){
+                    }
+                    
+                    
+                    let weekday = [
+                    'Mon[0800-0900]','Mon[0900-1000]','Mon[1000-1100]','Mon[1100-1200]','Mon[1200-1300]','Mon[1300-1400]','Mon[1400-1500]','Mon[1500-1600]','Mon[1600-1700]','Mon[1700-1800]',
+                    'Tue[0800-0900]','Tue[0900-1000]','Tue[1000-1100]','Tue[1100-1200]','Tue[1200-1300]','Tue[1300-1400]','Tue[1400-1500]','Tue[1500-1600]','Tue[1600-1700]','Tue[1700-1800]',
+                    'Wed[0800-0900]','Wed[0900-1000]','Wed[1000-1100]','Wed[1100-1200]','Wed[1200-1300]','Wed[1300-1400]','Wed[1400-1500]','Wed[1500-1600]','Wed[1600-1700]','Wed[1700-1800]',
+                    'Thu[0800-0900]','Thu[0900-1000]','Thu[1000-1100]','Thu[1100-1200]','Thu[1200-1300]','Thu[1300-1400]','Thu[1400-1500]','Thu[1500-1600]','Thu[1600-1700]','Thu[1700-1800]',
+                    'Fri[0800-0900]','Fri[0900-1000]','Fri[1000-1100]','Fri[1100-1200]','Fri[1200-1300]','Fri[1300-1400]','Fri[1400-1500]','Fri[1500-1600]','Fri[1600-1700]','Fri[1700-1800]',
+                    ]
+                    
+                    const create2dArray = (weekdayArray,partDay,arrayAll, partAll) => {
+                        var tmp = [];
+                        for(var i = 0; i < weekdayArray.length; i += partDay) {
+                            tmp.push(weekdayArray.slice(i, i + partDay));
+                        }
+                        for(var i = 0; i < arrayAll.length; i += partAll) {
+                            tmp.push(arrayAll.slice(i, i + partAll));
+                        }
+
+                        return tmp;
+                    }
+                    let dataset = create2dArray(weekday,50,presentableDataLecturer,50)
+                    
+                    
+                    
+                    const insertRoomName = (roomData,array) => {
+                        for(let i= 0; i<array.length; i++){
+                            array[i].unshift(roomData[i]);
+                        }
+                        return array;
+                    }
+                    
+                    insertRoomName(allRoomName,dataset)
+                    LoopTable.push(dataset);
+                }
+
+                console.log(LoopTable)
+                let csvData = []
+                for(let i = 0; i < LoopTable.length; i++){
+                    csvData.push(["Course Name"])
+                    csvData.push([courseNameArray[i]])
+                    csvData.push(["Course Couse"])
+                    csvData.push([courseCodeArray[i]])
+                    for(let j =0; j< LoopTable[i].length; j++){
+                        csvData.push(LoopTable[i][j]);
+                    }
+                    csvData.push([])
+                }
+                console.log(csvData)
+            
+            
+            
+            /** Convert a 2D array into a CSV string
+             */
+              function arrayToCsv(data){
+                //console.log(data)
+                return data.map(row =>
+                  row
+                  .map(String)  // convert every value to String
+                  .map(v => v.replaceAll('"', '""'))  // escape double colons
+                  .map(v => `"${v}"`)  // quote it
+                  .join(',')  // comma-separated
+                ).join('\r\n');  // rows starting on new lines
+              }
+
+            let csv = arrayToCsv(
+                csvData
+            );
+            
+            function downloadBlob(content, filename, contentType) {
+                // Create a blob
+                var blob = new Blob([content], { type: contentType });
+                var url = URL.createObjectURL(blob);
+              
+                // Create a link to download it
+                var pom = document.createElement('a');
+                pom.href = url;
+                pom.setAttribute('download', filename);
+                pom.click();
+              }
+
+            downloadBlob(csv, 'ModifiedAntSystem_GeneratedSchedule_by_Course.csv', 'text/csv;charset=utf-8;')
+        }
+
     return(
         <React.Fragment>
-            <h1>
-                Generate Schedule Page
-            </h1>
+            <div className="generate-schedule">
+                <h1>
+                    Please wait while generating schedule
+                </h1>
+                <button  onClick={mainGeneratedSchedule} disabled={disbaleButton}   className="generate-schedule-button">Download Main Schedule</button>
+                <button  onClick={lecturerGeneratedSchedule} disabled={disbaleButton}  className="generate-schedule-button">Download Schedule by Lecturer</button>
+                <button  onClick={courseGeneratedSchedule}  disabled={disbaleButton} className="generate-schedule-button">Download Schedule by Course</button>
+            </div>
 
         </React.Fragment>
     );
@@ -2789,11 +3227,3 @@ function downloadBlobElective(content, filename, contentType) {
 
 
 export default ArraySchedule;
-
-
-//result[i][j]=Course.splice(Math.floor(Math.random()* Course.length),1)[0] // create random placement of Course Value
-//const Schedule = new Array(10).fill(Array(5).fill(null));
-//console.log(Schedule);
-// const Course = [['TE1',4],['TE1',4],['TE1',4],['TE1',3],['TE1',4],['TE1',2],['TE1',4],['TE1',4],['TE1',4],['TE1',3]];
-//const Course = [['TE1',2],['TE2',2],['TE3',3],['TE4',4],['TE5',3],['TE6',4],['TE7',4],['TE8',2],['TE9',4]];
-//const Course = ['TE1','TE2','TE3','TE4','TE5','TE6','TE7','TE8','TE9'];

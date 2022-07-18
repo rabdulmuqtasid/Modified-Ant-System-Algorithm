@@ -6,7 +6,8 @@ const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
     userId: { type: String, required: true },
-    Dataset: [{ type: mongoose.Types.ObjectId, required: true, ref: 'File'}]
+    Dataset: [{ type: mongoose.Types.ObjectId, required: true, ref: 'File'}],
+    createdAt: { type: Date, expires: '1d', default: Date.now }
 });
 
 userSchema.plugin(uniqueValidator);

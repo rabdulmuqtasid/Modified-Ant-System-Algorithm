@@ -20,7 +20,7 @@ const UploadPage = () => {
                         <li >*Credits Hours</li>
                         <li >*Year</li>
                         <li >*Semester</li>
-                        <li >Lecture Code</li>
+                        <li >*Lecture Code</li>
                         <li >*Lecture</li>
                         <li >*Group</li>
                         <li >*HMS(Hours of Meeting Student </li>
@@ -35,9 +35,6 @@ const UploadPage = () => {
                         <li >*Room</li>
                         <li >*Size</li>
                         <li >Slot</li>
-                    </ul>
-                    <ul className="nav">
-                        <li >Attribute with " * " is important</li>
                     </ul>
                 </div>
                 <div className="upload-page__button">
