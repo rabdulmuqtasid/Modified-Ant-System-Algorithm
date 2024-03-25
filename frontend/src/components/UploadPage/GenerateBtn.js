@@ -1,15 +1,20 @@
 import React from "react";
-import {useNavigate} from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import './GenerateBtn.css';
 
 const GenerateButton = () => {
-    const history = useNavigate();
-    history('/GenerateSchedule')
+    const navigate = useNavigate(); // Use useNavigate correctly
+
+    const handleClick = () => {
+        navigate('/GenerateSchedule'); // Call navigate with the desired route
+    };
+
     return (
         <React.Fragment>
-        <button onClick={history} className="generate-button" >Generate Schedule</button>
+            <button onClick={handleClick} className="generate-button">Generate Schedule</button>
         </React.Fragment>
     );
 };
+
 export default GenerateButton;
