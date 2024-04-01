@@ -45,9 +45,9 @@ After installing the required software, you can either download the project as a
 
 2. **Screenshots**:
    - Below are screenshots demonstrating various pages of the application:
-     - Homepage: ![Homepage Screenshot](https://github.com/rabdulmuqtasid/Modified-Ant-System-Algorithm/assets/107633774/84782285-7aa3-4381-95ad-ea4a8ca835d9)
+     - Homepage: ![Screenshot 2024-04-01 130548](https://github.com/rabdulmuqtasid/Modified-Ant-System-Algorithm/assets/107633774/e97671b4-4c5f-4644-8c77-c066c6c137c7)
      - Generate Schedule Page: ![Generate Schedule Screenshot](https://github.com/rabdulmuqtasid/Modified-Ant-System-Algorithm/assets/107633774/a98d8ec5-8487-46d3-949a-8c6368547277)
-     - Download Generated Schedule Page:	![Screenshot 2024-04-01 130407](https://github.com/rabdulmuqtasid/Modified-Ant-System-Algorithm/assets/107633774/6c939c11-747d-4a21-b5c4-b95d913f8a9c)
+     - Download Generated Schedule Page: ![Screenshot 2024-04-01 130407](https://github.com/rabdulmuqtasid/Modified-Ant-System-Algorithm/assets/107633774/6c939c11-747d-4a21-b5c4-b95d913f8a9c)
 
 
 ## Running the Project
